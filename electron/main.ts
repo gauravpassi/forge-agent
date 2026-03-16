@@ -1,15 +1,36 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
-
-// Load .env from resources in production, or project root in dev
-const envPath = app.isPackaged
-  ? path.join(process.resourcesPath, '.env')
-  : path.join(__dirname, '../.env');
-dotenv.config({ path: envPath });
-
+import * as fs from 'fs';
 import { ForgeOrchestrator } from '../src/orchestrator';
 import { setLogCallback } from '../src/utils/logger';
+
+// Load .env by reading and parsing directly — works inside asar
+function loadEnv() {
+  const candidates = [
+    path.join(process.resourcesPath, '.env'),                    // packaged: Resources/.env
+    path.join(path.dirname(path.dirname(__dirname)), '.env'),    // dev: project root
+    path.join(__dirname, '../../../.env'),                       // fallback
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf-8');
+        for (const line of content.split('\n')) {
+          const match = line.match(/^([^#=]+)=(.*)$/);
+          if (match) {
+            const key = match[1].trim();
+            const val = match[2].trim().replace(/^["']|["']$/g, '');
+            if (key && !process.env[key]) process.env[key] = val;
+          }
+        }
+        return p; // loaded successfully
+      }
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
+const loadedFrom = loadEnv();
 
 let mainWindow: BrowserWindow | null = null;
 let orchestrator: ForgeOrchestrator | null = null;
@@ -87,7 +108,8 @@ ipcMain.handle('forge:status', async () => {
   return {
     configured: !!apiKey,
     projectPath,
-    projectName: path.basename(projectPath)
+    projectName: path.basename(projectPath),
+    envSource: loadedFrom || 'not found'
   };
 });
 

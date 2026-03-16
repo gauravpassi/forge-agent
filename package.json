@@ -45,11 +45,15 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*",
-      "assets/**/*",
-      "knowledge/**/*",
-      ".env",
-      "node_modules/**/*"
+      "!dist/mac-arm64/**",
+      "!dist/mac/**",
+      "!dist/*.dmg",
+      "!dist/*.blockmap",
+      "!dist/builder-debug.yml",
+      "!dist/latest-mac.yml",
+      "electron/renderer/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/{CHANGELOG.md,README.md,readme.md,*.ts,test,tests,__tests__}"
     ],
     "extraResources": [
       { "from": "knowledge", "to": "knowledge" },

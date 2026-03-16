@@ -1,7 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { app } from 'electron';
 
-const KB_PATH = path.join(__dirname, '../../knowledge');
+// Use userData (writable) in packaged app, local knowledge dir in dev
+const KB_PATH = app.isPackaged
+  ? path.join(app.getPath('userData'), 'knowledge')
+  : path.join(__dirname, '../../knowledge');
 
 export class KnowledgeBase {
   private projectPath: string;

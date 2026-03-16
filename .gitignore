@@ -3,3 +3,6 @@ dist/
 .env
 knowledge/*.json
 *.log
+*.env*
+.env
+.env.local
