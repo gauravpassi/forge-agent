@@ -8,7 +8,7 @@ export class DeploymentAgent extends BaseAgent {
       name: 'Deployment',
       systemPrompt: DEPLOYMENT_AGENT_PROMPT,
       projectPath,
-      tools: ['git', 'bash', 'kb']
+      tools: ['file', 'git', 'bash', 'kb']
     });
   }
 }

@@ -8,7 +8,7 @@ export class CodingAgent extends BaseAgent {
       name: 'Coding',
       systemPrompt: CODING_AGENT_PROMPT,
       projectPath,
-      tools: ['file', 'kb']
+      tools: ['file', 'bash', 'kb']
     });
   }
 }

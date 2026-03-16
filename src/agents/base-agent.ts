@@ -95,7 +95,7 @@ export class BaseAgent {
       // Agentic loop
       while (true) {
         const response = await this.client.messages.create({
-          model: 'claude-opus-4-5',
+          model: 'claude-opus-4-6',
           max_tokens: 4096,
           system: this.options.systemPrompt,
           tools,
