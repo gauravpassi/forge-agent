@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forge</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #09090b;
+      --bg-secondary: #18181b;
+      --bg-tertiary: #27272a;
+      --border: #3f3f46;
+      --text-primary: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #22c55e;
+      --accent-dim: rgba(34, 197, 94, 0.15);
+      --user-bg: #1e3a2f;
+      --user-border: #166534;
+      --agent-bg: #18181b;
+      --agent-border: #3f3f46;
+      --tool-bg: #1c1917;
+      --tool-border: #44403c;
+      --error-bg: #2d1515;
+      --error-border: #7f1d1d;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Title bar drag region */
+    .titlebar {
+      height: 38px;
+      background: var(--bg-primary);
+      -webkit-app-region: drag;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .titlebar-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      -webkit-app-region: no-drag;
+    }
+
+    .titlebar-icon { font-size: 16px; }
+
+    .titlebar-project {
+      position: absolute;
+      right: 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    /* Layout */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Messages area */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Welcome state */
+    .welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .welcome-icon { font-size: 48px; margin-bottom: 8px; }
+    .welcome-title { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+    .welcome-sub { font-size: 14px; color: var(--text-muted); max-width: 380px; line-height: 1.6; }
+
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+      max-width: 500px;
+    }
+
+    .suggestion {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+
+    .suggestion:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: var(--accent-dim);
+    }
+
+    /* Message bubbles */
+    .message { display: flex; flex-direction: column; gap: 4px; max-width: 100%; }
+
+    .message.user { align-items: flex-end; }
+    .message.forge { align-items: flex-start; }
+
+    .message-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 0 4px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .message.user .message-label { color: #4ade80; }
+
+    .bubble {
+      padding: 12px 16px;
+      border-radius: 12px;
+      max-width: 75%;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .message.user .bubble {
+      background: var(--user-bg);
+      border: 1px solid var(--user-border);
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.forge .bubble {
+      background: var(--agent-bg);
+      border: 1px solid var(--agent-border);
+      border-bottom-left-radius: 4px;
+      max-width: 90%;
+      white-space: pre-wrap;
+      font-size: 13px;
+    }
+
+    .message.error .bubble {
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: #fca5a5;
+    }
+
+    /* Agent activity log */
+    .activity {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      width: 90%;
+    }
+
+    .activity-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .activity-log {
+      padding: 10px 14px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .log-line { display: flex; gap: 8px; }
+    .log-line.agent { color: #67e8f9; }
+    .log-line.tool { color: #fbbf24; }
+    .log-line.success { color: #4ade80; }
+    .log-line.error { color: #f87171; }
+    .log-line.info { color: var(--text-muted); }
+
+    /* Thinking indicator */
+    .thinking {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      border-bottom-left-radius: 4px;
+      font-size: 13px;
+      color: var(--text-muted);
+      width: fit-content;
+    }
+
+    .dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Input area */
+    .input-area {
+      border-top: 1px solid var(--border);
+      padding: 16px 20px;
+      background: var(--bg-primary);
+      flex-shrink: 0;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      transition: border-color 0.15s;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--accent);
+    }
+
+    #chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      max-height: 120px;
+      min-height: 22px;
+      line-height: 1.5;
+    }
+
+    #chat-input::placeholder { color: var(--text-muted); }
+
+    #send-btn {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      font-size: 16px;
+      color: #000;
+    }
+
+    #send-btn:hover { background: #16a34a; transform: scale(1.05); }
+    #send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
+
+    .input-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    /* Status bar */
+    .statusbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 20px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .status-dot.offline { background: #f87171; }
+
+    /* Markdown-ish formatting */
+    .bubble code {
+      background: var(--bg-tertiary);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+      color: #67e8f9;
+    }
+
+    .bubble strong { color: var(--text-primary); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Title bar -->
+    <div class="titlebar">
+      <div class="titlebar-title">
+        <span class="titlebar-icon">🔨</span>
+        <span>Forge</span>
+      </div>
+      <div class="titlebar-project" id="project-name">Loading...</div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">🔨</div>
+        <div class="welcome-title">Forge Agent</div>
+        <div class="welcome-sub">Your AI development team. Plan, code, test and deploy in plain English.</div>
+        <div class="suggestions">
+          <div class="suggestion" onclick="sendSuggestion(this)">Add a new agent template</div>
+          <div class="suggestion" onclick="sendSuggestion(this)">Fix build errors</div>
+          <div class="suggestion" onclick="sendSuggestion(this)">Commit and deploy latest changes</div>
+          <div class="suggestion" onclick="sendSuggestion(this)">What agents are in the education hub?</div>
+          <div class="suggestion" onclick="sendSuggestion(this)">Run the build and check for errors</div>
+          <div class="suggestion" onclick="sendSuggestion(this)">Update the GADSL checker system prompt</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="input-wrapper">
+        <textarea
+          id="chat-input"
+          placeholder="Tell Forge what to build, fix, or deploy..."
+          rows="1"
+        ></textarea>
+        <button id="send-btn" onclick="sendMessage()" title="Send (Enter)">&#8593;</button>
+      </div>
+      <div class="input-hint">Enter to send &middot; Shift+Enter for new line</div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const statusText = document.getElementById('status-text');
+    const statusDot = document.getElementById('status-dot');
+    const projectNameEl = document.getElementById('project-name');
+
+    let isProcessing = false;
+
+    // Load status on start
+    window.forge.status().then(status => {
+      projectNameEl.textContent = status.projectName || 'Not configured';
+      if (!status.configured) {
+        statusDot.classList.add('offline');
+        statusText.textContent = 'API key not configured';
+      }
+    });
+
+    // Live activity log from main process
+    let currentActivityEl = null;
+    window.forge.onLog((log) => {
+      if (!currentActivityEl) return;
+      const logList = currentActivityEl.querySelector('.activity-log');
+      if (!logList) return;
+      const line = document.createElement('div');
+      const typeClass = log.type === 'error' ? 'error' : log.type === 'success' ? 'success' : log.type === 'agent' ? 'agent' : log.type === 'tool' ? 'tool' : 'info';
+      line.className = 'log-line ' + typeClass;
+      line.textContent = log.message;
+      logList.appendChild(line);
+      logList.scrollTop = logList.scrollHeight;
+      // Update the "Thinking..." text with current step
+      const thinkingText = document.getElementById('thinking-label');
+      if (thinkingText && log.type === 'agent') {
+        const clean = log.message.replace(/^\[.*?\]\s*/, '').slice(0, 55);
+        thinkingText.textContent = clean + '...';
+      }
+    });
+
+    // Auto-resize textarea
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    });
+
+    // Enter to send
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function sendSuggestion(el) {
+      inputEl.value = el.textContent;
+      sendMessage();
+    }
+
+    function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text || isProcessing) return;
+
+      // Hide welcome
+      const welcome = document.getElementById('welcome');
+      if (welcome) welcome.remove();
+
+      // Add user message
+      addMessage('user', text);
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+
+      // Start processing
+      setProcessing(true);
+      const { thinkingId, activityEl } = addThinking();
+      currentActivityEl = activityEl;
+
+      window.forge.send(text).then(result => {
+        currentActivityEl = null;
+        removeThinking(thinkingId);
+        setProcessing(false);
+
+        if (result.error) {
+          addMessage('error', result.error);
+        } else {
+          addForgeMessage(result.output);
+        }
+      }).catch(err => {
+        currentActivityEl = null;
+        removeThinking(thinkingId);
+        setProcessing(false);
+        addMessage('error', err.message || 'Unknown error');
+      });
+    }
+
+    function addMessage(type, text) {
+      const el = document.createElement('div');
+      el.className = 'message ' + type;
+
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = type === 'user' ? 'You' : type === 'error' ? 'Error' : 'Forge';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = text;
+
+      el.appendChild(label);
+      el.appendChild(bubble);
+      messagesEl.appendChild(el);
+      scrollToBottom();
+      return el;
+    }
+
+    function addForgeMessage(text) {
+      const el = document.createElement('div');
+      el.className = 'message forge';
+
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = 'Forge';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+
+      // Simple markdown-ish formatting
+      const formatted = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>');
+      bubble.innerHTML = formatted;
+
+      el.appendChild(label);
+      el.appendChild(bubble);
+      messagesEl.appendChild(el);
+      scrollToBottom();
+    }
+
+    function addThinking() {
+      const id = 'thinking-' + Date.now();
+      const el = document.createElement('div');
+      el.className = 'message forge';
+      el.id = id;
+
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = 'Forge';
+
+      const thinking = document.createElement('div');
+      thinking.className = 'thinking';
+      thinking.innerHTML =
+        '<div class="dots">' +
+          '<div class="dot"></div>' +
+          '<div class="dot"></div>' +
+          '<div class="dot"></div>' +
+        '</div>' +
+        '<span id="thinking-label">Routing task...</span>';
+
+      // Activity log panel for live streaming
+      const activity = document.createElement('div');
+      activity.className = 'activity';
+      activity.innerHTML =
+        '<div class="activity-header">⚡ Agent Activity</div>' +
+        '<div class="activity-log"></div>';
+
+      el.appendChild(label);
+      el.appendChild(thinking);
+      el.appendChild(activity);
+      messagesEl.appendChild(el);
+      scrollToBottom();
+      return { thinkingId: id, activityEl: el };
+    }
+
+    function removeThinking(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    function setProcessing(val) {
+      isProcessing = val;
+      sendBtn.disabled = val;
+      if (val) {
+        statusDot.style.background = '#fbbf24';
+        statusText.textContent = 'Processing...';
+      } else {
+        statusDot.style.background = '#22c55e';
+        statusText.textContent = 'Ready';
+      }
+    }
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+  </script>
+</body>
+</html>

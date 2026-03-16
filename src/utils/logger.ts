@@ -1,13 +1,24 @@
-import chalk from 'chalk';
+type LogCallback = (type: string, message: string) => void;
+
+let logCallback: LogCallback | null = null;
+
+export function setLogCallback(cb: LogCallback) {
+  logCallback = cb;
+}
+
+function emit(type: string, message: string) {
+  console.log(`[${type}] ${message}`);
+  if (logCallback) logCallback(type, message);
+}
 
 export const logger = {
-  forge: (msg: string) => console.log(chalk.green('🔨 Forge') + ' ' + msg),
-  agent: (name: string, msg: string) => console.log(chalk.cyan(`  [${name}]`) + ' ' + msg),
-  tool: (name: string, msg: string) => console.log(chalk.yellow(`    ⚙ ${name}`) + ' ' + chalk.gray(msg)),
-  success: (msg: string) => console.log(chalk.green('  ✅ ' + msg)),
-  error: (msg: string) => console.log(chalk.red('  ❌ ' + msg)),
-  info: (msg: string) => console.log(chalk.gray('  ℹ ' + msg)),
-  divider: () => console.log(chalk.gray('─'.repeat(60))),
-  user: (msg: string) => console.log(chalk.white.bold('You: ') + msg),
-  response: (msg: string) => console.log(chalk.green.bold('Forge: ') + msg),
+  forge: (msg: string) => emit('forge', msg),
+  agent: (name: string, msg: string) => emit('agent', `[${name}] ${msg}`),
+  tool: (name: string, msg: string) => emit('tool', `${name}: ${msg}`),
+  success: (msg: string) => emit('success', msg),
+  error: (msg: string) => emit('error', msg),
+  info: (msg: string) => emit('info', msg),
+  divider: () => emit('info', '────────────────────────────'),
+  user: (msg: string) => emit('info', 'You: ' + msg),
+  response: (msg: string) => emit('info', 'Forge: ' + msg),
 };
