@@ -72,6 +72,10 @@ export class ForgeOrchestrator {
   } | null = null;
 
   private currentAgent: import('./agents/base-agent').BaseAgent | null = null;
+
+  // Auto-resume tracking — how many times we've automatically resumed after timeout/token-limit
+  private autoResumeCount = 0;
+  private readonly MAX_AUTO_RESUMES = 5;
   private currentTaskType: TaskType = 'enhancement';
 
   cancel(): void {
@@ -410,6 +414,7 @@ export class ForgeOrchestrator {
   ): Promise<string> {
     if (tasks.length === 0) {
       checkpoint.status = 'completed';
+      this.autoResumeCount = 0; // reset for next task
       this.cpManager.save(checkpoint);
       logger.divider();
       const lastOutput = previousOutputs[previousOutputs.length - 1] || '';
@@ -472,13 +477,33 @@ export class ForgeOrchestrator {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       const isTokenLimit = /prompt is too long|token|context length|maximum context/i.test(errMsg);
-      checkpoint.status = isTokenLimit ? 'token_limit' : 'error';
+      const isTimeout   = /timed? ?out|ETIMEDOUT|ECONNRESET|ECONNABORTED|504|408|request timeout/i.test(errMsg);
+      const isResumable = isTokenLimit || isTimeout;
+
+      // Save checkpoint with current progress so nothing is lost
+      checkpoint.status = isResumable ? 'token_limit' : 'error';
       checkpoint.errorMessage = errMsg;
       checkpoint.completedOutputs = previousOutputs;
       this.cpManager.save(checkpoint);
 
-      if (isTokenLimit) {
-        return `⚠️ Token limit reached — checkpoint **${checkpoint.id}** saved.\nCompleted ${checkpoint.completedTasks.length}/${checkpoint.totalTasks} tasks.\nSay **"resume"** to continue.`;
+      if (isResumable) {
+        const reason = isTimeout ? '⏱️ Request timed out' : '⚠️ Token limit reached';
+        logger.info(`${reason} — checkpoint saved. Auto-resuming... (${this.autoResumeCount + 1}/${this.MAX_AUTO_RESUMES})`);
+
+        if (this.autoResumeCount < this.MAX_AUTO_RESUMES) {
+          this.autoResumeCount++;
+          // Brief pause before retrying to avoid hammering the API
+          await new Promise(r => setTimeout(r, 3000));
+          // Resume from the checkpoint — skips already-completed tasks, picks up where it stopped
+          const progressNote = previousOutputs.length > 0
+            ? `${previousOutputs.join('\n\n')}\n\n---\n⟳ Auto-resuming after ${isTimeout ? 'timeout' : 'token limit'}...\n\n`
+            : `⟳ Auto-resuming after ${isTimeout ? 'timeout' : 'token limit'}...\n\n`;
+          const resumed = await this.resumeFromCheckpoint(checkpoint);
+          return progressNote + resumed;
+        }
+
+        // Exhausted auto-resumes — tell user manually
+        return `${reason} — checkpoint **${checkpoint.id}** saved.\nCompleted ${checkpoint.completedTasks.length}/${checkpoint.totalTasks} tasks.\nSay **"resume"** to continue.`;
       }
       throw err;
     }
@@ -563,38 +588,33 @@ export class ForgeOrchestrator {
 
     const context = this.kb.getProjectContext();
 
-    let plan: OrchestratorPlan;
-    try {
-      const planResponse = await this.client.messages.create({
-        model: 'claude-haiku-4-5',
-        max_tokens: 600,
-        system: ORCHESTRATOR_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: `Project: AgenticAI (Next.js/TypeScript on Vercel)\n\nUser request: ${cp.userMessage}` }]
-      });
-      const planText = planResponse.content.filter(b => b.type === 'text').map(b => (b as Anthropic.TextBlock).text).join('');
-      const jsonMatch = planText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON');
-      const jsonStr2 = jsonMatch[0]
-        .replace(/,\s*([}\]])/g, '$1')
-        .replace(/[\u2018\u2019]/g, "'")
-        .replace(/[\u201C\u201D]/g, '"');
-      plan = JSON.parse(jsonStr2);
-    } catch {
-      plan = {
-        intent: cp.intent,
-        tasks: [{ agent: cp.currentAgent || 'query', instruction: cp.currentInstruction || cp.userMessage }],
-        summary_prompt: ''
-      };
+    // Build remaining tasks directly from checkpoint data — no LLM re-plan needed.
+    // The checkpoint stores exactly which agents ran and which is current.
+    // Full task sequence for a standard feature: planning → coding → testing → deployment
+    const fullSequence: OrchestratorTask[] = [
+      { agent: 'planning',    instruction: cp.userMessage },
+      { agent: 'coding',      instruction: cp.currentInstruction || cp.userMessage },
+      { agent: 'testing',     instruction: 'Run the build and report results.' },
+      { agent: 'deployment',  instruction: 'Commit all changes and push to GitHub.' },
+    ];
+
+    // Include the current (interrupted) agent — it didn't complete, so retry it
+    const completedSet = new Set(cp.completedTasks);
+    const remainingTasks = fullSequence.filter(t => !completedSet.has(t.agent));
+
+    // If the interrupted agent was mid-way, use its saved instruction
+    if (cp.currentAgent && !completedSet.has(cp.currentAgent)) {
+      const match = remainingTasks.find(t => t.agent === cp.currentAgent);
+      if (match && cp.currentInstruction) match.instruction = cp.currentInstruction;
     }
 
-    const remainingTasks = plan.tasks.filter(t => !cp.completedTasks.includes(t.agent));
     if (remainingTasks.length === 0) {
       this.cpManager.markCompleted(cp.id);
       return `All tasks already completed.\n\n${cp.completedOutputs.join('\n\n')}`;
     }
 
     logger.info(`Remaining: ${remainingTasks.map(t => STEP_LABELS[t.agent] || t.agent).join(' → ')}`);
-    const resumeCtx = context.slice(0, 600);
+    const resumeCtx = context.slice(0, 800);
     return this.runTasks(remainingTasks, cp.completedOutputs, cp, resumeCtx);
   }
 
