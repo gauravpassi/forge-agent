@@ -126,7 +126,7 @@ export class BaseAgent {
     instruction: string,
     context?: string,
     image?: { base64: string; mediaType: string; name: string },
-    doc?: { base64?: string; text?: string; name: string; docType: 'pdf' | 'text' }
+    docs?: Array<{ base64?: string; text?: string; name: string; size?: number; docType: 'pdf' | 'text' }>
   ): Promise<AgentResult> {
     // Minimal context: only pass if agent actually needs project awareness
     const needsContext = ['file','kb','bash'].some(t => (this.options.tools || []).includes(t));
@@ -134,25 +134,31 @@ export class BaseAgent {
       ? `Context:\n${context}\n\nInstruction: ${instruction}`
       : instruction;
 
-    // Build first message — include image/document blocks if provided
+    // Build first message — one document block per attached file + optional image
     let firstContent: Anthropic.MessageParam['content'];
     const contentBlocks: Anthropic.ContentBlockParam[] = [];
 
-    if (doc) {
-      if (doc.docType === 'pdf' && doc.base64) {
-        // Native PDF document block — Claude reads it directly
-        contentBlocks.push({
-          type: 'document',
-          source: { type: 'base64', media_type: 'application/pdf', data: doc.base64 }
-        } as unknown as Anthropic.ContentBlockParam);
-        logger.info(`PDF attached: ${doc.name}`);
-      } else if (doc.docType === 'text' && doc.text) {
-        // Inline text document block
-        contentBlocks.push({
-          type: 'document',
-          source: { type: 'text', media_type: 'text/plain', data: doc.text }
-        } as unknown as Anthropic.ContentBlockParam);
-        logger.info(`Document attached: ${doc.name} (${doc.text.length} chars)`);
+    if (docs && docs.length > 0) {
+      // File manifest so Claude knows all files upfront
+      const manifest = docs.map((d, i) =>
+        `[File ${i + 1}] ${d.name} (${d.docType === 'pdf' ? 'PDF' : 'text'})${d.size ? ` — ${Math.round(d.size / 1024)} KB` : ''}`
+      ).join('\n');
+      contentBlocks.push({ type: 'text', text: `Attached files:\n${manifest}\n` });
+
+      for (const doc of docs) {
+        if (doc.docType === 'pdf' && doc.base64) {
+          contentBlocks.push({
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: doc.base64 }
+          } as unknown as Anthropic.ContentBlockParam);
+          logger.info(`PDF attached: ${doc.name}`);
+        } else if (doc.docType === 'text' && doc.text) {
+          contentBlocks.push({
+            type: 'document',
+            source: { type: 'text', media_type: 'text/plain', data: doc.text }
+          } as unknown as Anthropic.ContentBlockParam);
+          logger.info(`Text doc attached: ${doc.name} (${doc.text.length} chars)`);
+        }
       }
     }
 

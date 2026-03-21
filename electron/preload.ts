@@ -4,8 +4,8 @@ contextBridge.exposeInMainWorld('forge', {
   send: (
     message: string,
     image?: { base64: string; mediaType: string; name: string },
-    doc?: { base64?: string; text?: string; name: string; docType: 'pdf' | 'text' }
-  ) => ipcRenderer.invoke('forge:send', message, image, doc),
+    docs?: Array<{ base64?: string; text?: string; name: string; size: number; docType: 'pdf' | 'text' }>
+  ) => ipcRenderer.invoke('forge:send', message, image, docs),
   cancel: () => ipcRenderer.invoke('forge:cancel'),
   status: () => ipcRenderer.invoke('forge:status'),
   openExternal: (url: string) => ipcRenderer.invoke('forge:open-external', url),

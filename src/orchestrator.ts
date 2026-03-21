@@ -140,7 +140,7 @@ export class ForgeOrchestrator {
   async process(
     userMessage: string,
     image?: { base64: string; mediaType: string; name: string },
-    doc?: { base64?: string; text?: string; name: string; docType: 'pdf' | 'text' }
+    docs?: Array<{ base64?: string; text?: string; name: string; size?: number; docType: 'pdf' | 'text' }>
   ): Promise<string> {
     const trimmed = userMessage.trim();
     logger.forge(`Processing: "${trimmed.slice(0, 60)}..."`);
@@ -231,7 +231,7 @@ export class ForgeOrchestrator {
 
     // ── Prototype-first flow for new features ──
     if (taskType === 'new_feature') {
-      return this.runPrototypeFirstFlow(userMessage, plan, cpId, context, image, doc);
+      return this.runPrototypeFirstFlow(userMessage, plan, cpId, context, image, docs);
     }
 
     // Save checkpoint
@@ -250,7 +250,7 @@ export class ForgeOrchestrator {
     };
     this.cpManager.save(checkpoint);
 
-    return this.runTasks(plan.tasks, [], checkpoint, context, image, doc);
+    return this.runTasks(plan.tasks, [], checkpoint, context, image, docs);
   }
 
   // ── Prototype-first flow: planning → prototype → await approval → coding/testing/deployment ──
@@ -260,7 +260,7 @@ export class ForgeOrchestrator {
     cpId: string,
     context: string,
     image?: { base64: string; mediaType: string; name: string },
-    doc?: { base64?: string; text?: string; name: string; docType: 'pdf' | 'text' }
+    docs?: Array<{ base64?: string; text?: string; name: string; size?: number; docType: 'pdf' | 'text' }>
   ): Promise<string> {
     const checkpoint: TaskCheckpoint = {
       id: cpId,
@@ -284,7 +284,7 @@ export class ForgeOrchestrator {
       logger.info('Running planning agent before prototype...');
       const planAgent = this.agents['planning'];
       const agentContext = this.getContextForAgent('planning', context);
-      const planResult = await planAgent.run(planningTask.instruction, agentContext, image, doc);
+      const planResult = await planAgent.run(planningTask.instruction, agentContext, image, docs);
       if (!planResult.success) {
         return `❌ Planning failed: ${planResult.error}`;
       }
@@ -400,7 +400,7 @@ export class ForgeOrchestrator {
     checkpoint: TaskCheckpoint,
     context: string,
     image?: { base64: string; mediaType: string; name: string },
-    doc?: { base64?: string; text?: string; name: string; docType: 'pdf' | 'text' }
+    docs?: Array<{ base64?: string; text?: string; name: string; size?: number; docType: 'pdf' | 'text' }>
   ): Promise<string> {
     if (tasks.length === 0) {
       checkpoint.status = 'completed';
@@ -446,7 +446,7 @@ export class ForgeOrchestrator {
       } else {
         // Only pass doc to first agent (planning/coding) — don't re-send on every task
         const isFirstTask = previousOutputs.length === 0;
-        result = await agent.run(task.instruction, agentContext, image, isFirstTask ? doc : undefined);
+        result = await agent.run(task.instruction, agentContext, image, isFirstTask ? docs : undefined);
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -504,7 +504,7 @@ export class ForgeOrchestrator {
     }
 
     // Single-step task or query — run all remaining without pausing
-    return this.runTasks(remainingAfter, allOutputs, checkpoint, context, image, doc);
+    return this.runTasks(remainingAfter, allOutputs, checkpoint, context, image, docs);
   }
 
   // ── Continue pending plan after user confirms ──

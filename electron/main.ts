@@ -97,13 +97,13 @@ ipcMain.handle(
     _event,
     message: string,
     image?: { base64: string; mediaType: string; name: string },
-    doc?: { base64?: string; text?: string; name: string; docType: 'pdf' | 'text' }
+    docs?: Array<{ base64?: string; text?: string; name: string; size: number; docType: 'pdf' | 'text' }>
   ) => {
     if (!orchestrator) {
       return { error: 'ANTHROPIC_API_KEY not configured. Please set it in your .env file.' };
     }
     try {
-      const output = await orchestrator.process(message, image, doc);
+      const output = await orchestrator.process(message, image, docs);
       return { output };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };

@@ -275,23 +275,28 @@
       font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
     .img-label { font-size: 11px; color: var(--violet); }
 
-    /* Document preview strip */
-    .doc-preview-strip { display: flex; align-items: center; gap: 10px; padding: 8px 4px 0; }
-    .doc-chip {
-      display: flex; align-items: center; gap: 7px; background: var(--bg-tertiary);
-      border: 1px solid #3b5bdb; border-radius: 8px; padding: 5px 10px;
-      font-size: 11px; color: #748ffc; max-width: 260px;
+    /* Document preview strip — multi-file */
+    .doc-preview-strip { display: flex; flex-direction: column; gap: 6px; padding: 8px 4px 0; }
+    .doc-chips-row {
+      display: flex; flex-wrap: wrap; gap: 6px; max-height: 80px; overflow-y: auto;
     }
-    .doc-chip-icon { font-size: 14px; flex-shrink: 0; }
-    .doc-chip-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .doc-chips-row::-webkit-scrollbar { width: 3px; height: 3px; }
+    .doc-chips-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .doc-chip {
+      display: flex; align-items: center; gap: 6px; background: var(--bg-tertiary);
+      border: 1px solid #3b5bdb; border-radius: 8px; padding: 4px 9px;
+      font-size: 11px; color: #748ffc; max-width: 220px; flex-shrink: 0;
+    }
+    .doc-chip-icon { font-size: 13px; flex-shrink: 0; }
+    .doc-chip-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; max-width: 120px; }
     .doc-chip-size { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
     .doc-chip-remove {
-      background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 12px;
-      padding: 0 0 0 4px; display: flex; align-items: center; flex-shrink: 0;
+      background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 11px;
+      padding: 0 0 0 2px; display: flex; align-items: center; flex-shrink: 0;
       transition: color 0.12s;
     }
     .doc-chip-remove:hover { color: #f87171; }
-    .doc-chip-label { font-size: 11px; color: #748ffc; }
+    .doc-chip-label { font-size: 11px; color: #748ffc; padding-left: 2px; }
 
     /* Drag-over overlay */
     .drag-overlay { display: none; position: fixed; inset: 0; background: rgba(139,92,246,0.18);
@@ -508,7 +513,7 @@
 
         <!-- Hidden file inputs -->
         <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" />
-        <input type="file" id="doc-input" accept=".pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py,.docx" style="display:none" />
+        <input type="file" id="doc-input" accept=".pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py,.docx" multiple style="display:none" />
 
         <div class="input-area">
           <!-- Image preview strip -->
@@ -519,15 +524,10 @@
             </div>
             <span class="img-label" id="img-label">Image attached — describe what to do with it</span>
           </div>
-          <!-- Document preview strip -->
+          <!-- Document preview strip (multi-file) -->
           <div class="doc-preview-strip" id="doc-preview-strip" style="display:none">
-            <div class="doc-chip">
-              <span class="doc-chip-icon" id="doc-chip-icon">📄</span>
-              <span class="doc-chip-name" id="doc-chip-name">document.pdf</span>
-              <span class="doc-chip-size" id="doc-chip-size"></span>
-              <button class="doc-chip-remove" id="doc-remove" title="Remove document">✕</button>
-            </div>
-            <span class="doc-chip-label" id="doc-label">Use as KB / context for this task</span>
+            <div class="doc-chips-row" id="doc-chips-row"></div>
+            <span class="doc-chip-label" id="doc-label"></span>
           </div>
           <div class="input-wrapper" id="input-wrapper">
             <button id="attach-btn" title="Attach image (or drag & drop)">📎</button>
@@ -563,16 +563,13 @@
     const statusText = document.getElementById('status-text');
     const statusDot = document.getElementById('status-dot');
 
-    // ── Document attachment ──
+    // ── Document attachment (multi-file) ──
     const docBtn = document.getElementById('doc-btn');
     const docInput = document.getElementById('doc-input');
     const docPreviewStrip = document.getElementById('doc-preview-strip');
-    const docChipName = document.getElementById('doc-chip-name');
-    const docChipSize = document.getElementById('doc-chip-size');
-    const docChipIcon = document.getElementById('doc-chip-icon');
+    const docChipsRow = document.getElementById('doc-chips-row');
     const docLabelEl = document.getElementById('doc-label');
-    const docRemoveBtn = document.getElementById('doc-remove');
-    let attachedDoc = null; // { base64?, text?, name, docType: 'pdf'|'text' }
+    let attachedDocs = []; // [{ base64?, text?, name, size, docType: 'pdf'|'text' }]
 
     const DOC_ICONS = { pdf: '📕', txt: '📝', md: '📝', csv: '📊', json: '🔧', ts: '🔷', tsx: '🔷', js: '🟨', jsx: '🟨', py: '🐍', docx: '📘' };
 
@@ -582,53 +579,81 @@
       return (b / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
-    function showDocChip(name, size, docType) {
-      const ext = name.split('.').pop().toLowerCase();
-      docChipIcon.textContent = DOC_ICONS[ext] || '📄';
-      docChipName.textContent = name;
-      docChipSize.textContent = formatBytes(size);
-      docLabelEl.textContent = docType === 'pdf'
-        ? 'PDF attached — Forge will read it as knowledge context'
-        : 'Document attached — will be used as context / KB';
+    function renderDocChips() {
+      docChipsRow.innerHTML = '';
+      if (attachedDocs.length === 0) {
+        docPreviewStrip.style.display = 'none';
+        return;
+      }
       docPreviewStrip.style.display = 'flex';
+
+      attachedDocs.forEach((doc, idx) => {
+        const ext = doc.name.split('.').pop().toLowerCase();
+        const icon = DOC_ICONS[ext] || '📄';
+
+        const chip = document.createElement('div');
+        chip.className = 'doc-chip';
+        chip.innerHTML = `
+          <span class="doc-chip-icon">${icon}</span>
+          <span class="doc-chip-name" title="${doc.name}">${doc.name}</span>
+          <span class="doc-chip-size">${formatBytes(doc.size)}</span>
+          <button class="doc-chip-remove" title="Remove ${doc.name}">✕</button>
+        `;
+        chip.querySelector('.doc-chip-remove').addEventListener('click', () => {
+          attachedDocs.splice(idx, 1);
+          renderDocChips();
+        });
+        docChipsRow.appendChild(chip);
+      });
+
+      // Summary label
+      const pdfCount = attachedDocs.filter(d => d.docType === 'pdf').length;
+      const txtCount = attachedDocs.length - pdfCount;
+      const parts = [];
+      if (pdfCount) parts.push(`${pdfCount} PDF${pdfCount > 1 ? 's' : ''}`);
+      if (txtCount) parts.push(`${txtCount} text file${txtCount > 1 ? 's' : ''}`);
+      docLabelEl.textContent = `${parts.join(' + ')} attached — Forge will read each one as context`;
     }
 
-    function clearDoc() {
-      attachedDoc = null;
-      docPreviewStrip.style.display = 'none';
+    function clearDocs() {
+      attachedDocs = [];
       docInput.value = '';
+      renderDocChips();
     }
-
-    docRemoveBtn.addEventListener('click', clearDoc);
 
     docBtn.addEventListener('click', () => docInput.click());
 
     docInput.addEventListener('change', () => {
-      const file = docInput.files[0];
-      if (!file) return;
-      const ext = file.name.split('.').pop().toLowerCase();
-      const isPdf = ext === 'pdf';
-      const isDocx = ext === 'docx';
-      const reader = new FileReader();
+      const files = Array.from(docInput.files);
+      if (!files.length) return;
 
-      if (isPdf || isDocx) {
-        // Read as base64 for Anthropic document block
-        reader.onload = (e) => {
-          const dataUrl = e.target.result;
-          const base64 = dataUrl.split(',')[1];
-          attachedDoc = { base64, name: file.name, docType: 'pdf' };
-          showDocChip(file.name, file.size, 'pdf');
-        };
-        reader.readAsDataURL(file);
-      } else {
-        // Read as plain text (txt, md, csv, json, ts, js, py, etc.)
-        reader.onload = (e) => {
-          const text = e.target.result;
-          attachedDoc = { text, name: file.name, docType: 'text' };
-          showDocChip(file.name, file.size, 'text');
-        };
-        reader.readAsText(file);
-      }
+      // Read all files in parallel using Promise-style FileReader
+      const readPromises = files.map(file => new Promise((resolve) => {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const isBinary = ext === 'pdf' || ext === 'docx';
+        const reader = new FileReader();
+
+        if (isBinary) {
+          reader.onload = (e) => {
+            const base64 = e.target.result.split(',')[1];
+            resolve({ base64, name: file.name, size: file.size, docType: 'pdf' });
+          };
+          reader.readAsDataURL(file);
+        } else {
+          reader.onload = (e) => {
+            resolve({ text: e.target.result, name: file.name, size: file.size, docType: 'text' });
+          };
+          reader.readAsText(file);
+        }
+      }));
+
+      Promise.all(readPromises).then(newDocs => {
+        // Merge with existing — skip duplicates by name
+        const existingNames = new Set(attachedDocs.map(d => d.name));
+        newDocs.forEach(d => { if (!existingNames.has(d.name)) attachedDocs.push(d); });
+        docInput.value = ''; // reset so same files can be re-selected if removed
+        renderDocChips();
+      });
     });
 
     // ── Left Sidebar ──
@@ -1029,23 +1054,23 @@
     // ── Send message ──
     function sendMessage() {
       const text = inputEl.value.trim();
-      if ((!text && !attachedImage && !attachedDoc) || isProcessing) return;
+      if ((!text && !attachedImage && !attachedDocs.length) || isProcessing) return;
 
       const welcome = document.getElementById('welcome');
       const isFirstMessage = !!welcome; // true only if welcome screen still showing
       if (welcome) welcome.remove();
 
       const imageToSend = attachedImage ? { ...attachedImage } : null;
-      const docToSend = attachedDoc ? { ...attachedDoc } : null;
+      const docsToSend = attachedDocs.length ? attachedDocs.map(d => ({ ...d })) : null;
       const displayText = text
         || (imageToSend ? '🖼️ ' + imageToSend.name : '')
-        || (docToSend ? '📄 ' + docToSend.name : '');
+        || (docsToSend ? `📄 ${docsToSend.length} file${docsToSend.length > 1 ? 's' : ''} attached` : '');
 
       addUserMessage(displayText, imageToSend ? imgThumb.src : null);
       inputEl.value = '';
       inputEl.style.height = 'auto';
       clearAttachedImage();
-      clearDoc();
+      clearDocs();
 
       // Only start a new session entry on the very first message — NOT on confirmations/follow-ups
       if (isFirstMessage) startSession(displayText);
@@ -1058,7 +1083,7 @@
       toolCards = {};
 
       try {
-        window.forge.send(text || 'Analyse this input', imageToSend, docToSend).then(result => {
+        window.forge.send(text || 'Analyse attached files', imageToSend, docsToSend).then(result => {
           finalisePanel(panelMsgEl);
           currentPanel = null;
           currentToolsEl = null;
