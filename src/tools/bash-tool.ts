@@ -1,4 +1,25 @@
 import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Electron strips PATH to bare minimum — expand it to include npm/git/brew locations
+function buildExpandedPath(): string {
+  const extras: string[] = ['/usr/local/bin', '/opt/homebrew/bin', '/opt/homebrew/sbin'];
+  // Add active nvm node version bin if present
+  const nvmDir = path.join(process.env.HOME || '', '.nvm', 'versions', 'node');
+  try {
+    if (fs.existsSync(nvmDir)) {
+      const versions = fs.readdirSync(nvmDir).filter(v => v.startsWith('v')).sort((a, b) => {
+        const pa = a.replace(/\D/g, '').padStart(20, '0');
+        const pb = b.replace(/\D/g, '').padStart(20, '0');
+        return pb.localeCompare(pa);
+      });
+      if (versions[0]) extras.unshift(path.join(nvmDir, versions[0], 'bin'));
+    }
+  } catch { /* ignore */ }
+  return [...extras, process.env.PATH || ''].join(':');
+}
+const EXPANDED_PATH = buildExpandedPath();
 
 export const bashToolDefinitions = [
   {
@@ -36,7 +57,8 @@ export function executeBashTool(toolInput: Record<string, string | number>, proj
       cwd: projectPath,
       encoding: 'utf-8',
       timeout: Number(timeout_seconds) * 1000,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: EXPANDED_PATH },
     });
     return result || '(command completed with no output)';
   } catch (err: unknown) {

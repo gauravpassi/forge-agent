@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import { CodingAgent, CodingComplexity } from './agents/coding-agent';
 import { DeploymentAgent } from './agents/deployment-agent';
 import { PlanningAgent } from './agents/planning-agent';
@@ -410,9 +412,10 @@ export class ForgeOrchestrator {
       this.cpManager.save(checkpoint);
       logger.divider();
       const lastOutput = previousOutputs[previousOutputs.length - 1] || '';
-      // If last step was testing, show interactive deploy card in the renderer
+      // If last step was testing AND build actually passed → show deploy card
       const lastWasTesting = checkpoint.completedTasks[checkpoint.completedTasks.length - 1] === 'testing';
-      if (lastWasTesting) {
+      const buildFailed = /build fail|npm.*not found|command not found|error TS\d|❌|cannot find module/i.test(lastOutput);
+      if (lastWasTesting && !buildFailed) {
         const deployMarker = `\n\n---DEPLOY_PROMPT---\nsummary: All checks passed. Click Deploy now to push to GitHub and go live on Vercel.\nbranch: main\n---DEPLOY_END---`;
         return lastOutput + deployMarker;
       }
@@ -590,29 +593,63 @@ export class ForgeOrchestrator {
     return `**Checkpoints:**\n\n${lines.join('\n\n')}\n\nSay "resume" to continue the latest unfinished task.`;
   }
 
+  /** Resolve a PATH that includes npm regardless of Electron's stripped environment */
+  private buildEnvPath(): string {
+    const extra: string[] = [
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      '/opt/homebrew/sbin',
+    ];
+    // Detect nvm: find the active/latest version directory
+    const nvmDir = path.join(process.env.HOME || '', '.nvm', 'versions', 'node');
+    try {
+      if (fs.existsSync(nvmDir)) {
+        const versions = fs.readdirSync(nvmDir)
+          .filter(v => v.startsWith('v'))
+          .sort((a, b) => {
+            const [, ma, na, pa] = a.match(/v(\d+)\.(\d+)\.(\d+)/) || [];
+            const [, mb, nb, pb] = b.match(/v(\d+)\.(\d+)\.(\d+)/) || [];
+            return (+mb - +ma) || (+nb - +na) || (+pb - +pa);
+          });
+        if (versions.length > 0) extra.unshift(path.join(nvmDir, versions[0], 'bin'));
+      }
+    } catch { /* ignore */ }
+    return [...extra, process.env.PATH || ''].join(':');
+  }
+
   private async runBuildDirectly(): Promise<{ success: boolean; output: string; error?: string }> {
     const projectPath = '/Users/gauravpassi/Desktop/AgenticAI/agenticai-demo';
     logger.info('Running build directly (no LLM)...');
+
+    const env = { ...process.env, PATH: this.buildEnvPath() };
+
     try {
-      const output = execSync('npm run build', {
+      execSync('npm run build', {
         cwd: projectPath,
         encoding: 'utf-8',
         timeout: 120000,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env,
       });
       logger.success('Build passed');
       return { success: true, output: '✅ Build passed — no TypeScript errors found.' };
     } catch (err: unknown) {
       const error = err as { stdout?: string; stderr?: string; message?: string };
       const buildOutput = [error.stdout, error.stderr].filter(Boolean).join('\n').slice(0, 1500);
-      logger.error('Build failed — falling back to LLM for error analysis');
-      // Build failed — use the testing LLM agent to analyse and report the error
+      logger.error('Build failed — running LLM analysis');
+
+      // Pass explicit success: false so the deploy card is never shown after a build failure
       const agent = this.agents['testing'];
       if (agent) {
         const agentContext = this.getContextForAgent('testing', '');
-        return agent.run(`Build failed with these errors. Analyse and report:\n\n${buildOutput}`, agentContext);
+        const result = await agent.run(
+          `Build failed with these errors. Analyse, explain the root cause, and suggest the fix:\n\n${buildOutput}`,
+          agentContext
+        );
+        // Always mark as failure regardless of whether the LLM agent itself succeeded
+        return { success: false, output: result.output, error: 'Build failed' };
       }
-      return { success: false, output: '', error: `Build failed:\n${buildOutput}` };
+      return { success: false, output: `❌ Build failed:\n\`\`\`\n${buildOutput}\n\`\`\``, error: 'Build failed' };
     }
   }
 

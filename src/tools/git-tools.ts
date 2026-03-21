@@ -55,10 +55,18 @@ export const gitToolDefinitions = [
   }
 ];
 
+// Electron strips PATH — add common git/npm locations so commands work
+const EXPANDED_PATH = [
+  '/usr/local/bin', '/opt/homebrew/bin', '/opt/homebrew/sbin',
+  '/usr/bin', '/bin', '/usr/sbin', '/sbin',
+  process.env.PATH || '',
+].join(':');
+
 export function executeGitTool(toolName: string, toolInput: Record<string, string | boolean | number>, projectPath: string): string {
+  const env = { ...process.env, PATH: EXPANDED_PATH };
   const exec = (cmd: string) => {
     try {
-      return execSync(cmd, { cwd: projectPath, encoding: 'utf-8' }).trim();
+      return execSync(cmd, { cwd: projectPath, encoding: 'utf-8', env }).trim();
     } catch (err) {
       return `Error: ${err instanceof Error ? err.message : String(err)}`;
     }
