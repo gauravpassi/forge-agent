@@ -11,7 +11,8 @@ export class CodingAgent extends BaseAgent {
     // medium = multi-file enhancement → Sonnet
     // complex = new feature / new files / architectural changes → Opus
     const model = complexity === 'complex' ? MODELS.powerful : MODELS.balanced;
-    const maxTokens = complexity === 'complex' ? 4096 : 2048;
+    // Higher token budgets so large file writes don't get truncated mid-file
+    const maxTokens = complexity === 'complex' ? 8192 : 4096;
 
     super(client, {
       name: 'Coding',
@@ -20,6 +21,7 @@ export class CodingAgent extends BaseAgent {
       tools: ['file', 'bash', 'kb'],
       model,
       maxTokens,
+      continuousMode: true, // keep looping until ✅ Done — never stop mid-task
     });
   }
 }

@@ -10,8 +10,9 @@ export interface AgentOptions {
   systemPrompt: string;
   projectPath: string;
   tools?: string[];
-  model?: string;       // override model
-  maxTokens?: number;   // override max_tokens
+  model?: string;        // override model
+  maxTokens?: number;    // override max_tokens
+  continuousMode?: boolean; // keep running until ✅ Done (coding agent)
 }
 
 export interface AgentResult {
@@ -194,6 +195,14 @@ export class BaseAgent {
     // Dynamic model & token selection
     const model     = this.options.model     || MODELS.balanced;
     const maxTokens = this.options.maxTokens || 1024;
+    const continuous = this.options.continuousMode ?? false;
+    const MAX_CONTINUATIONS = 8; // safety cap — up to 8 auto-continue cycles
+    let continuations = 0;
+
+    // Completion detector: output is done when it has ✅ Done marker OR has no pending narration
+    const looksIncomplete = (text: string) =>
+      !/✅\s*Done/i.test(text) &&
+      /now let me|next[,\s]+(i('ll| will|let))|let me (now |also |next |then )?(create|build|add|write|update|implement)|i('ll| will) (now |also |next )?(create|build|add|write|update|implement)/i.test(text);
 
     try {
       let finalOutput = '';
@@ -228,14 +237,11 @@ export class BaseAgent {
           }
         }
 
-        // Reset each turn — we only want the FINAL text, not intermediate
-        // "I'll analyze...", "Let me check..." narration between tool calls
+        // Reset each turn — we only want the FINAL text, not intermediate narration
         finalOutput = '';
         for (const block of response.content) {
           if (block.type === 'text') finalOutput += block.text;
         }
-
-        if (response.stop_reason === 'end_turn') break;
 
         if (response.stop_reason === 'tool_use') {
           messages.push({ role: 'assistant', content: response.content });
@@ -253,6 +259,20 @@ export class BaseAgent {
           );
 
           messages.push({ role: 'user', content: toolResults });
+          continue;
+        }
+
+        // stop_reason === 'end_turn' — model finished this response
+        // In continuous mode: if the output looks like mid-task narration (not ✅ Done),
+        // push a continuation message and keep going — exactly like Claude Code does.
+        if (continuous && continuations < MAX_CONTINUATIONS && looksIncomplete(finalOutput)) {
+          continuations++;
+          logger.info(`Coding agent mid-task (continuation ${continuations}/${MAX_CONTINUATIONS}) — continuing...`);
+          messages.push({ role: 'assistant', content: response.content });
+          messages.push({
+            role: 'user',
+            content: [{ type: 'text', text: 'Continue. Use tools to complete the remaining work. Do NOT narrate — just use write_file/edit_file for each remaining file. Output ✅ Done only when everything is fully written.' }]
+          });
           continue;
         }
 

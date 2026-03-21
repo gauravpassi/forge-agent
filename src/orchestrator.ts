@@ -28,8 +28,9 @@ interface OrchestratorPlan {
   isNewFeature?: boolean;
 }
 
-// Agents that are "major steps" requiring confirmation before proceeding
-const MAJOR_STEPS = ['planning', 'coding', 'testing', 'deployment', 'docs'];
+// Only deployment requires user confirmation — coding → testing → build all run automatically.
+// Forge works like Claude Code: run everything end-to-end, only ask before pushing to GitHub.
+const MAJOR_STEPS = ['deployment'];
 
 // Step labels for human-readable confirmation prompts
 const STEP_LABELS: Record<string, string> = {
