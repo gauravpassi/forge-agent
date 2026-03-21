@@ -450,9 +450,23 @@ export class ForgeOrchestrator {
       if (task.agent === 'testing') {
         result = await this.runBuildDirectly();
       } else {
-        // Only pass doc to first agent (planning/coding) — don't re-send on every task
+        // Only pass docs to first agent (planning/coding) — don't re-send on every task
         const isFirstTask = previousOutputs.length === 0;
         result = await agent.run(task.instruction, agentContext, images, isFirstTask ? docs : undefined);
+
+        // Guard: coding agent sometimes asks questions instead of writing code.
+        // Detect this and force a re-run with an explicit override instruction.
+        if (task.agent.startsWith('coding') && result.success) {
+          const out = result.output || '';
+          const isQuestion =
+            /should i proceed|would you like|shall i|do you want|please confirm|haven.t been built|not been built|not yet implemented|before i (start|proceed|build)/i.test(out)
+            || (out.trim().endsWith('?') && !/✅/.test(out));
+          if (isQuestion) {
+            logger.info('Coding agent asked a question — forcing code generation...');
+            const forceInstruction = `STOP ASKING QUESTIONS. Your previous response asked for confirmation instead of writing code. That is wrong.\n\nYou MUST write the code now. No questions, no clarifications, no "should I proceed".\n\nOriginal task: ${task.instruction}\n\nStart immediately: use list_files to explore, then write_file/edit_file to create all necessary files. Go.`;
+            result = await agent.run(forceInstruction, agentContext, images, undefined);
+          }
+        }
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
