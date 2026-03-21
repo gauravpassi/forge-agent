@@ -96,14 +96,14 @@ ipcMain.handle(
   async (
     _event,
     message: string,
-    image?: { base64: string; mediaType: string; name: string },
+    images?: Array<{ base64: string; mediaType: string; name: string }>,
     docs?: Array<{ base64?: string; text?: string; name: string; size: number; docType: 'pdf' | 'text' }>
   ) => {
     if (!orchestrator) {
       return { error: 'ANTHROPIC_API_KEY not configured. Please set it in your .env file.' };
     }
     try {
-      const output = await orchestrator.process(message, image, docs);
+      const output = await orchestrator.process(message, images, docs);
       return { output };
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };

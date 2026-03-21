@@ -125,7 +125,7 @@ export class BaseAgent {
   async run(
     instruction: string,
     context?: string,
-    image?: { base64: string; mediaType: string; name: string },
+    images?: Array<{ base64: string; mediaType: string; name: string }>,
     docs?: Array<{ base64?: string; text?: string; name: string; size?: number; docType: 'pdf' | 'text' }>
   ): Promise<AgentResult> {
     // Minimal context: only pass if agent actually needs project awareness
@@ -134,12 +134,26 @@ export class BaseAgent {
       ? `Context:\n${context}\n\nInstruction: ${instruction}`
       : instruction;
 
-    // Build first message — one document block per attached file + optional image
+    // Build first message — one block per image + one block per document
     let firstContent: Anthropic.MessageParam['content'];
     const contentBlocks: Anthropic.ContentBlockParam[] = [];
 
+    // ── Images: one vision block per image ──
+    if (images && images.length > 0) {
+      if (images.length > 1) {
+        contentBlocks.push({ type: 'text', text: `Attached images (${images.length}): ${images.map(i => i.name).join(', ')}\n` });
+      }
+      for (const img of images) {
+        contentBlocks.push({
+          type: 'image',
+          source: { type: 'base64', media_type: img.mediaType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp', data: img.base64 }
+        });
+        logger.info(`Image attached: ${img.name} (${img.mediaType})`);
+      }
+    }
+
+    // ── Documents: one document block per file ──
     if (docs && docs.length > 0) {
-      // File manifest so Claude knows all files upfront
       const manifest = docs.map((d, i) =>
         `[File ${i + 1}] ${d.name} (${d.docType === 'pdf' ? 'PDF' : 'text'})${d.size ? ` — ${Math.round(d.size / 1024)} KB` : ''}`
       ).join('\n');
@@ -160,14 +174,6 @@ export class BaseAgent {
           logger.info(`Text doc attached: ${doc.name} (${doc.text.length} chars)`);
         }
       }
-    }
-
-    if (image) {
-      contentBlocks.push({
-        type: 'image',
-        source: { type: 'base64', media_type: image.mediaType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp', data: image.base64 }
-      });
-      logger.info(`Image attached: ${image.name} (${image.mediaType})`);
     }
 
     contentBlocks.push({ type: 'text', text: textContent });

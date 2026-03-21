@@ -266,14 +266,18 @@
     #send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; color: var(--text-muted); }
 
     /* Image preview strip */
-    .image-preview-strip { display: flex; align-items: center; gap: 8px; padding: 8px 4px 0; }
-    .img-thumb-wrap { position: relative; display: inline-flex; }
+    /* Image preview strip — multi-image */
+    .image-preview-strip { display: flex; flex-direction: column; gap: 6px; padding: 8px 4px 0; }
+    .img-thumbs-row { display: flex; flex-wrap: wrap; gap: 8px; max-height: 80px; overflow-y: auto; }
+    .img-thumbs-row::-webkit-scrollbar { width: 3px; height: 3px; }
+    .img-thumbs-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .img-thumb-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
     .img-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px;
-      border: 1px solid var(--violet); cursor: pointer; }
+      border: 1px solid var(--violet); cursor: pointer; display: block; }
     .img-remove { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px;
       background: var(--red); border-radius: 50%; border: none; cursor: pointer; color: #fff;
       font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-    .img-label { font-size: 11px; color: var(--violet); }
+    .img-label { font-size: 11px; color: var(--violet); padding-left: 2px; }
 
     /* Document preview strip — multi-file */
     .doc-preview-strip { display: flex; flex-direction: column; gap: 6px; padding: 8px 4px 0; }
@@ -512,17 +516,14 @@
         <div class="drag-overlay" id="drag-overlay">📎 Drop image to analyse</div>
 
         <!-- Hidden file inputs -->
-        <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" />
+        <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple style="display:none" />
         <input type="file" id="doc-input" accept=".pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py,.docx" multiple style="display:none" />
 
         <div class="input-area">
-          <!-- Image preview strip -->
+          <!-- Image preview strip (multi-image) -->
           <div class="image-preview-strip" id="image-preview-strip" style="display:none">
-            <div class="img-thumb-wrap" id="img-thumb-wrap">
-              <img id="img-thumb" class="img-thumb" src="" alt="attached" />
-              <button class="img-remove" id="img-remove" title="Remove image">✕</button>
-            </div>
-            <span class="img-label" id="img-label">Image attached — describe what to do with it</span>
+            <div class="img-thumbs-row" id="img-thumbs-row"></div>
+            <span class="img-label" id="img-label"></span>
           </div>
           <!-- Document preview strip (multi-file) -->
           <div class="doc-preview-strip" id="doc-preview-strip" style="display:none">
@@ -826,48 +827,84 @@
     let currentToolsEl = null;
     let toolCards = {};
 
-    // ── Image state ──
-    let attachedImage = null; // { base64: string, mediaType: string, name: string }
+    // ── Image state (multi-image) ──
+    let attachedImages = []; // [{ base64, mediaType, name, dataUrl }]
+    const imgThumbsRow = document.getElementById('img-thumbs-row');
 
-    function setAttachedImage(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        const base64 = dataUrl.split(',')[1];
-        const mediaType = file.type || 'image/png';
-        attachedImage = { base64, mediaType, name: file.name };
-        imgThumb.src = dataUrl;
-        imgLabel.textContent = file.name + ' — describe what to do with it';
-        imagePreviewStrip.style.display = 'flex';
-        attachBtn.classList.add('active');
-        inputWrapper.classList.add('has-image');
-        inputEl.placeholder = 'Describe what to do with this image...';
+    function renderImageThumbs() {
+      imgThumbsRow.innerHTML = '';
+      if (attachedImages.length === 0) {
+        imagePreviewStrip.style.display = 'none';
+        attachBtn.classList.remove('active');
+        inputWrapper.classList.remove('has-image');
+        inputEl.placeholder = 'Tell Forge what to build, fix, or deploy...';
+        return;
+      }
+      imagePreviewStrip.style.display = 'flex';
+      attachBtn.classList.add('active');
+      inputWrapper.classList.add('has-image');
+      inputEl.placeholder = 'Describe what to do with these images...';
+
+      attachedImages.forEach((img, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'img-thumb-wrap';
+        const thumb = document.createElement('img');
+        thumb.className = 'img-thumb';
+        thumb.src = img.dataUrl;
+        thumb.alt = img.name;
+        thumb.title = img.name;
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'img-remove';
+        removeBtn.title = `Remove ${img.name}`;
+        removeBtn.textContent = '✕';
+        removeBtn.addEventListener('click', () => {
+          attachedImages.splice(idx, 1);
+          renderImageThumbs();
+        });
+        wrap.appendChild(thumb);
+        wrap.appendChild(removeBtn);
+        imgThumbsRow.appendChild(wrap);
+      });
+
+      const imgLabel = document.getElementById('img-label');
+      imgLabel.textContent = attachedImages.length === 1
+        ? `${attachedImages[0].name} — describe what to do with it`
+        : `${attachedImages.length} images attached — describe what to do with them`;
+    }
+
+    function addImagesToQueue(files) {
+      const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+      if (!imageFiles.length) return;
+
+      const readAll = imageFiles.map(file => new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          resolve({ base64: dataUrl.split(',')[1], mediaType: file.type || 'image/png', name: file.name, dataUrl });
+        };
+        reader.readAsDataURL(file);
+      }));
+
+      Promise.all(readAll).then(newImgs => {
+        const existingNames = new Set(attachedImages.map(i => i.name));
+        newImgs.forEach(img => { if (!existingNames.has(img.name)) attachedImages.push(img); });
+        imageInput.value = '';
+        renderImageThumbs();
         inputEl.focus();
-      };
-      reader.readAsDataURL(file);
+      });
     }
 
-    function clearAttachedImage() {
-      attachedImage = null;
-      imgThumb.src = '';
-      imagePreviewStrip.style.display = 'none';
-      attachBtn.classList.remove('active');
-      inputWrapper.classList.remove('has-image');
-      inputEl.placeholder = 'Tell Forge what to build, fix, or deploy...';
+    function clearAttachedImages() {
+      attachedImages = [];
       imageInput.value = '';
+      renderImageThumbs();
     }
 
-    // Attach button click → open file picker
+    // Attach button → open multi-file picker
     attachBtn.addEventListener('click', () => imageInput.click());
 
-    // File selected
-    imageInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) setAttachedImage(file);
-    });
-
-    // Remove image
-    imgRemoveBtn.addEventListener('click', clearAttachedImage);
+    // Files selected via picker
+    imageInput.addEventListener('change', (e) => addImagesToQueue(e.target.files));
 
     // Drag & drop anywhere on window
     document.addEventListener('dragover', (e) => { e.preventDefault(); dragOverlay.classList.add('active'); });
@@ -875,16 +912,15 @@
     document.addEventListener('drop', (e) => {
       e.preventDefault();
       dragOverlay.classList.remove('active');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) setAttachedImage(file);
+      if (e.dataTransfer.files.length) addImagesToQueue(e.dataTransfer.files);
     });
 
-    // Paste image from clipboard
+    // Paste image from clipboard → adds to queue
     document.addEventListener('paste', (e) => {
-      const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
-      if (item) {
-        const file = item.getAsFile();
-        if (file) setAttachedImage(file);
+      const items = Array.from(e.clipboardData.items).filter(i => i.type.startsWith('image/'));
+      if (items.length) {
+        const files = items.map(i => i.getAsFile()).filter(Boolean);
+        if (files.length) addImagesToQueue(files);
       }
     });
 
@@ -1054,22 +1090,23 @@
     // ── Send message ──
     function sendMessage() {
       const text = inputEl.value.trim();
-      if ((!text && !attachedImage && !attachedDocs.length) || isProcessing) return;
+      if ((!text && !attachedImages.length && !attachedDocs.length) || isProcessing) return;
 
       const welcome = document.getElementById('welcome');
       const isFirstMessage = !!welcome; // true only if welcome screen still showing
       if (welcome) welcome.remove();
 
-      const imageToSend = attachedImage ? { ...attachedImage } : null;
+      const imagesToSend = attachedImages.length ? attachedImages.map(i => ({ base64: i.base64, mediaType: i.mediaType, name: i.name })) : null;
       const docsToSend = attachedDocs.length ? attachedDocs.map(d => ({ ...d })) : null;
       const displayText = text
-        || (imageToSend ? '🖼️ ' + imageToSend.name : '')
+        || (imagesToSend ? `🖼️ ${imagesToSend.length} image${imagesToSend.length > 1 ? 's' : ''} attached` : '')
         || (docsToSend ? `📄 ${docsToSend.length} file${docsToSend.length > 1 ? 's' : ''} attached` : '');
 
-      addUserMessage(displayText, imageToSend ? imgThumb.src : null);
+      const previewDataUrls = attachedImages.map(i => i.dataUrl);
+      addUserMessage(displayText, previewDataUrls);
       inputEl.value = '';
       inputEl.style.height = 'auto';
-      clearAttachedImage();
+      clearAttachedImages();
       clearDocs();
 
       // Only start a new session entry on the very first message — NOT on confirmations/follow-ups
@@ -1083,7 +1120,7 @@
       toolCards = {};
 
       try {
-        window.forge.send(text || 'Analyse attached files', imageToSend, docsToSend).then(result => {
+        window.forge.send(text || 'Analyse attached files', imagesToSend, docsToSend).then(result => {
           finalisePanel(panelMsgEl);
           currentPanel = null;
           currentToolsEl = null;
@@ -1167,12 +1204,16 @@
     }
 
     // ── Add messages ──
-    function addUserMessage(text, imageSrc) {
+    function addUserMessage(text, imageDataUrls) {
       const el = document.createElement('div');
       el.className = 'message user';
       let content = '';
-      if (imageSrc) {
-        content += `<img src="${imageSrc}" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid #6d28d9;display:block;margin-bottom:6px;" />`;
+      // Render each image thumbnail in the chat bubble
+      if (imageDataUrls && imageDataUrls.length > 0) {
+        const thumbsHtml = imageDataUrls.map(src =>
+          `<img src="${src}" style="max-width:120px;max-height:90px;border-radius:7px;border:1px solid #6d28d9;display:inline-block;" />`
+        ).join('');
+        content += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:${text ? 6 : 0}px;">${thumbsHtml}</div>`;
       }
       if (text) content += `<div>${escHtml(text)}</div>`;
       el.innerHTML = `<div class="message-label">You</div><div class="bubble">${content}</div>`;

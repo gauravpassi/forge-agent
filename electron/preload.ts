@@ -3,9 +3,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('forge', {
   send: (
     message: string,
-    image?: { base64: string; mediaType: string; name: string },
+    images?: Array<{ base64: string; mediaType: string; name: string }>,
     docs?: Array<{ base64?: string; text?: string; name: string; size: number; docType: 'pdf' | 'text' }>
-  ) => ipcRenderer.invoke('forge:send', message, image, docs),
+  ) => ipcRenderer.invoke('forge:send', message, images, docs),
   cancel: () => ipcRenderer.invoke('forge:cancel'),
   status: () => ipcRenderer.invoke('forge:status'),
   openExternal: (url: string) => ipcRenderer.invoke('forge:open-external', url),
