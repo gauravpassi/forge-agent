@@ -229,8 +229,11 @@ export class ForgeOrchestrator {
     logger.info(`Tasks: ${plan.tasks.map(t => STEP_LABELS[t.agent] || t.agent).join(' → ')}`);
     logger.divider();
 
-    // ── Prototype-first flow for new features ──
-    if (taskType === 'new_feature') {
+    // ── Prototype-first flow — only for clearly UI-centric new features ──
+    // Backend tasks (new agent, new route, new tool, etc.) skip prototype and go straight to coding
+    const isUiFeature = taskType === 'new_feature' &&
+      /new\s+(page|screen|dashboard|ui|view|panel|tab|modal|widget|chart|form|layout|section)|add\s+(page|screen|dashboard|ui|view|tab|modal)|build\s+(page|screen|dashboard)/i.test(userMessage);
+    if (isUiFeature) {
       return this.runPrototypeFirstFlow(userMessage, plan, cpId, context, images, docs);
     }
 

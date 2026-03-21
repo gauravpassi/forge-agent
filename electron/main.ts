@@ -103,8 +103,15 @@ ipcMain.handle(
       return { error: 'ANTHROPIC_API_KEY not configured. Please set it in your .env file.' };
     }
     try {
-      const output = await orchestrator.process(message, images, docs);
-      return { output };
+      const IPC_TIMEOUT_MS = 5 * 60_000; // 5-minute hard ceiling — prevents eternal hang
+      const timeoutResult = new Promise<{ output: string }>(resolve =>
+        setTimeout(() => resolve({ output: '⏱️ Request timed out after 5 minutes. The task may be too complex or the API is busy. Please try again or break the task into smaller steps.' }), IPC_TIMEOUT_MS)
+      );
+      const result = await Promise.race([
+        orchestrator.process(message, images, docs).then(output => ({ output })),
+        timeoutResult
+      ]);
+      return result;
     } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) };
     }
