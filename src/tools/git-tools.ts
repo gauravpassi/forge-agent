@@ -27,8 +27,13 @@ export const gitToolDefinitions = [
     }
   },
   {
+    name: 'git_pull',
+    description: 'Pull latest changes from the remote repository (uses --rebase to avoid merge commits)',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
     name: 'git_commit_and_push',
-    description: 'Stage all changes, commit with a message, and push to remote',
+    description: 'Stage all changes, commit with a message, pull latest remote changes (rebase), then push to remote',
     input_schema: {
       type: 'object',
       properties: {
@@ -71,13 +76,20 @@ export function executeGitTool(toolName: string, toolInput: Record<string, strin
       return exec(`git log --oneline -${count}`);
     }
 
+    case 'git_pull': {
+      return exec('git pull --rebase');
+    }
+
     case 'git_commit_and_push': {
       const addResult = exec('git add -A');
       if (addResult.startsWith('Error')) return addResult;
       const commitResult = exec(`git commit -m "${toolInput.message}\n\nCo-Authored-By: Forge Agent <forge@upcoretech.com>"`);
       if (commitResult.startsWith('Error')) return commitResult;
+      // Pull latest remote changes before pushing to avoid rejected pushes
+      const pullResult = exec('git pull --rebase');
+      if (pullResult.startsWith('Error')) return `Commit succeeded but pull failed: ${pullResult}`;
       const pushResult = exec('git push');
-      return `${commitResult}\n${pushResult}`;
+      return `${commitResult}\n${pullResult}\n${pushResult}`;
     }
 
     case 'git_create_branch': {

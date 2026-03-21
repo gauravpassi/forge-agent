@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ForgeOrchestrator } from '../src/orchestrator';
 import { setLogCallback } from '../src/utils/logger';
+import { startPrototypeServer } from '../src/server/prototype-server';
 
 // Load .env by reading and parsing directly — works inside asar
 function loadEnv() {
@@ -67,13 +68,15 @@ app.whenReady().then(() => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const projectPath = process.env.TARGET_PROJECT_PATH || '/Users/gauravpassi/Desktop/AgenticAI/agenticai-demo';
 
+  startPrototypeServer();
+
   if (apiKey) {
     orchestrator = new ForgeOrchestrator(apiKey, projectPath);
   }
 
   // Wire logger → renderer IPC for live activity stream
-  setLogCallback((type: string, message: string) => {
-    mainWindow?.webContents.send('forge:log', { type, message });
+  setLogCallback((type: string, message: string, meta?: Record<string, string>) => {
+    mainWindow?.webContents.send('forge:log', { type, message, ...meta });
   });
 
   createWindow();
@@ -88,18 +91,25 @@ app.on('window-all-closed', () => {
 });
 
 // IPC: handle chat messages from renderer
-ipcMain.handle('forge:send', async (_event, message: string) => {
-  if (!orchestrator) {
-    return { error: 'ANTHROPIC_API_KEY not configured. Please set it in your .env file.' };
+ipcMain.handle(
+  'forge:send',
+  async (
+    _event,
+    message: string,
+    image?: { base64: string; mediaType: string; name: string },
+    doc?: { base64?: string; text?: string; name: string; docType: 'pdf' | 'text' }
+  ) => {
+    if (!orchestrator) {
+      return { error: 'ANTHROPIC_API_KEY not configured. Please set it in your .env file.' };
+    }
+    try {
+      const output = await orchestrator.process(message, image, doc);
+      return { output };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
   }
-
-  try {
-    const output = await orchestrator.process(message);
-    return { output };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-});
+);
 
 // IPC: get config/status
 ipcMain.handle('forge:status', async () => {
@@ -111,6 +121,15 @@ ipcMain.handle('forge:status', async () => {
     projectName: path.basename(projectPath),
     envSource: loadedFrom || 'not found'
   };
+});
+
+// IPC: cancel current task
+ipcMain.handle('forge:cancel', async () => {
+  if (orchestrator) {
+    orchestrator.cancel();
+    return { cancelled: true };
+  }
+  return { cancelled: false };
 });
 
 // IPC: open external URLs

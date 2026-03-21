@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgent } from './base-agent';
+import { BaseAgent, MODELS } from './base-agent';
 import { DOCS_AGENT_PROMPT } from '../config/prompts';
 
 export class DocsAgent extends BaseAgent {
@@ -8,7 +8,9 @@ export class DocsAgent extends BaseAgent {
       name: 'Docs',
       systemPrompt: DOCS_AGENT_PROMPT,
       projectPath,
-      tools: ['file', 'kb']
+      tools: ['file', 'kb'],
+      model: MODELS.fast,   // Haiku: simple writing tasks
+      maxTokens: 1024,
     });
   }
 }

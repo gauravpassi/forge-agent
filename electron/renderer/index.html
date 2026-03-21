@@ -17,391 +17,531 @@
       --text-secondary: #a1a1aa;
       --text-muted: #71717a;
       --accent: #22c55e;
-      --accent-dim: rgba(34, 197, 94, 0.15);
-      --user-bg: #1e3a2f;
+      --accent-dim: rgba(34,197,94,0.12);
+      --violet: #8b5cf6;
+      --violet-dim: rgba(139,92,246,0.12);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245,158,11,0.12);
+      --cyan: #06b6d4;
+      --cyan-dim: rgba(6,182,212,0.10);
+      --red: #ef4444;
+      --user-bg: #1a2e22;
       --user-border: #166534;
-      --agent-bg: #18181b;
-      --agent-border: #3f3f46;
-      --tool-bg: #1c1917;
-      --tool-border: #44403c;
-      --error-bg: #2d1515;
-      --error-border: #7f1d1d;
     }
 
-    html, body {
-      height: 100%;
-      background: var(--bg-primary);
-      color: var(--text-primary);
+    html, body { height: 100%; background: var(--bg-primary); color: var(--text-primary);
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
+      font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* Title bar */
+    .titlebar { height: 38px; background: var(--bg-primary); -webkit-app-region: drag;
+      display: flex; align-items: center; justify-content: center;
+      border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; }
+    .titlebar-title { display: flex; align-items: center; gap: 8px; font-size: 13px;
+      font-weight: 700; color: var(--text-secondary); -webkit-app-region: no-drag; letter-spacing: 0.03em; }
+    .titlebar-badge { font-size: 16px; }
+    .titlebar-project { position: absolute; right: 14px; font-size: 11px; color: var(--text-muted);
+      background: var(--bg-tertiary); padding: 2px 8px; border-radius: 4px; -webkit-app-region: no-drag; }
+    #sidebar-toggle-btn { position: absolute; left: 76px; -webkit-app-region: no-drag;
+      background: none; border: none; border-radius: 6px;
+      color: var(--text-muted); font-size: 16px; padding: 2px 6px; cursor: pointer;
+      display: flex; align-items: center; transition: all 0.15s; line-height: 1; }
+    #sidebar-toggle-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+
+    /* Main layout — LEFT sidebar + chat */
+    .main-layout { display: flex; flex: 1; overflow: hidden; }
+    .chat-col { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ── LEFT SIDEBAR ── */
+    .left-sidebar {
+      width: 220px; flex-shrink: 0; display: flex; flex-direction: column;
+      background: var(--bg-secondary); border-right: 1px solid var(--border);
+      overflow: hidden; transition: width 0.22s ease;
+    }
+    .left-sidebar.collapsed { width: 0; }
+    .left-sidebar-inner { width: 220px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+    /* Sidebar top actions */
+    .sidebar-actions { padding: 12px 12px 8px; flex-shrink: 0; }
+    .new-session-btn {
+      width: 100%; padding: 7px 12px; border-radius: 8px;
+      background: var(--bg-tertiary); border: 1px solid var(--border);
+      color: var(--text-secondary); font-size: 12px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .new-session-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Task steps section */
+    .sidebar-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-muted); padding: 10px 14px 4px; flex-shrink: 0; }
+    .sidebar-divider { height: 1px; background: var(--border); margin: 0; flex-shrink: 0; }
+
+    /* Two-section split: Current Task (top) + Recent Sessions (bottom) */
+    .sidebar-top {
+      flex: 0 1 50%; min-height: 80px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .sidebar-bottom {
+      flex: 1 1 0; min-height: 80px; display: flex; flex-direction: column; overflow: hidden;
+      border-top: 1px solid var(--border);
     }
 
-    /* Title bar drag region */
-    .titlebar {
-      height: 38px;
-      background: var(--bg-primary);
-      -webkit-app-region: drag;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-bottom: 1px solid var(--border);
-      position: relative;
-      flex-shrink: 0;
-    }
+    .todo-list { flex: 1; overflow-y: auto; padding: 6px 0 10px; min-height: 0; }
+    .todo-list::-webkit-scrollbar { width: 4px; }
+    .todo-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    .titlebar-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      -webkit-app-region: no-drag;
-    }
+    /* Todo items */
+    .todo-item { display: flex; align-items: flex-start; gap: 10px;
+      padding: 7px 14px; transition: background 0.15s; border-radius: 6px; margin: 0 4px; }
+    .todo-item:hover { background: rgba(255,255,255,0.04); }
+    .todo-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex;
+      align-items: center; justify-content: center; font-size: 12px; margin-top: 2px; }
+    .todo-spinner { width: 13px; height: 13px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; }
+    .todo-text { flex: 1; font-size: 12px; line-height: 1.4; }
+    .todo-item.pending .todo-text { color: var(--text-muted); }
+    .todo-item.active .todo-text { color: var(--text-primary); font-weight: 600; }
+    .todo-item.done .todo-text { color: var(--text-muted); text-decoration: line-through;
+      text-decoration-color: rgba(34,197,94,0.6); }
+    .todo-item.failed .todo-text { color: #f87171; }
+    .todo-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; line-height: 1.3; }
+    .todo-divider { height: 1px; background: rgba(63,63,70,0.5); margin: 3px 14px; }
+    .todo-empty { padding: 20px 14px; font-size: 11px; color: var(--text-muted); line-height: 1.7; }
 
-    .titlebar-icon { font-size: 16px; }
+    /* Active step highlight bar */
+    .todo-item.active { background: rgba(34,197,94,0.06); border-left: 2px solid var(--accent); padding-left: 12px; margin-left: 4px; }
 
-    .titlebar-project {
-      position: absolute;
-      right: 14px;
-      font-size: 11px;
-      color: var(--text-muted);
-      background: var(--bg-tertiary);
-      padding: 2px 8px;
-      border-radius: 4px;
-      -webkit-app-region: no-drag;
-    }
+    /* Sidebar session history */
+    .session-list { flex: 1; padding: 4px 0 10px; overflow-y: auto; min-height: 0; }
+    .session-item { padding: 5px 10px; font-size: 11px; color: var(--text-muted);
+      cursor: pointer; border-radius: 6px; margin: 1px 4px;
+      display: flex; align-items: flex-start; gap: 6px; transition: all 0.12s; }
+    .session-item:hover { background: rgba(255,255,255,0.04); color: var(--text-secondary); }
+    .session-item.muted { cursor: default; opacity: 0.4; }
+    .session-dot { flex-shrink: 0; font-size: 9px; margin-top: 2px; }
+    .session-body { display: flex; flex-direction: column; min-width: 0; }
+    .session-label { font-size: 11px; color: var(--text-secondary); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; max-width: 148px; }
+    .session-meta { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+    .todo-empty { padding: 24px 16px; text-align: center; font-size: 12px;
+      color: var(--text-muted); line-height: 1.7; }
 
-    /* Layout */
-    .app {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-
-    /* Messages area */
-    .messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .messages::-webkit-scrollbar { width: 6px; }
-    .messages::-webkit-scrollbar-track { background: transparent; }
+    /* Messages */
+    .messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex;
+      flex-direction: column; gap: 20px; }
+    .messages::-webkit-scrollbar { width: 5px; }
     .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    /* Welcome state */
-    .welcome {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 40px;
-      text-align: center;
-    }
+    /* Welcome */
+    .welcome { flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 14px; padding: 40px; text-align: center; }
+    .welcome-icon { font-size: 52px; margin-bottom: 4px; }
+    .welcome-title { font-size: 26px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+    .welcome-sub { font-size: 14px; color: var(--text-muted); max-width: 400px; line-height: 1.7; }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+      margin-top: 8px; max-width: 520px; }
+    .suggestion { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 14px; font-size: 12px; color: var(--text-secondary); cursor: pointer;
+      transition: all 0.15s; text-align: left; }
+    .suggestion:hover { border-color: var(--accent); color: var(--text-primary); background: var(--accent-dim); }
 
-    .welcome-icon { font-size: 48px; margin-bottom: 8px; }
-    .welcome-title { font-size: 24px; font-weight: 700; color: var(--text-primary); }
-    .welcome-sub { font-size: 14px; color: var(--text-muted); max-width: 380px; line-height: 1.6; }
-
-    .suggestions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      margin-top: 8px;
-      max-width: 500px;
-    }
-
-    .suggestion {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 12px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.15s;
-      text-align: left;
-    }
-
-    .suggestion:hover {
-      border-color: var(--accent);
-      color: var(--text-primary);
-      background: var(--accent-dim);
-    }
-
-    /* Message bubbles */
-    .message { display: flex; flex-direction: column; gap: 4px; max-width: 100%; }
-
+    /* Message group */
+    .message { display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
     .message.user { align-items: flex-end; }
     .message.forge { align-items: flex-start; }
-
-    .message-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      padding: 0 4px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-
+    .message-label { font-size: 11px; font-weight: 700; color: var(--text-muted);
+      padding: 0 4px; letter-spacing: 0.06em; text-transform: uppercase; }
     .message.user .message-label { color: #4ade80; }
+    .message.forge .message-label { color: var(--violet); }
 
-    .bubble {
-      padding: 12px 16px;
-      border-radius: 12px;
-      max-width: 75%;
-      line-height: 1.6;
-      word-break: break-word;
-    }
+    .bubble { padding: 12px 16px; border-radius: 12px; word-break: break-word; line-height: 1.65; }
+    .message.user .bubble { background: var(--user-bg); border: 1px solid var(--user-border);
+      border-bottom-right-radius: 4px; max-width: 70%; font-size: 14px; }
+    .message.forge .bubble { background: var(--bg-secondary); border: 1px solid var(--border);
+      border-bottom-left-radius: 4px; max-width: 92%; font-size: 13px; white-space: pre-wrap; }
+    .message.error .bubble { background: #2d1515; border: 1px solid #7f1d1d; color: #fca5a5; max-width: 92%; }
 
-    .message.user .bubble {
-      background: var(--user-bg);
-      border: 1px solid var(--user-border);
-      border-bottom-right-radius: 4px;
-    }
+    /* ── AGENT ACTIVITY PANEL ── */
+    .activity-panel { background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; width: 92%; }
 
-    .message.forge .bubble {
-      background: var(--agent-bg);
-      border: 1px solid var(--agent-border);
-      border-bottom-left-radius: 4px;
-      max-width: 90%;
-      white-space: pre-wrap;
-      font-size: 13px;
-    }
+    .activity-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+      border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .activity-header .pulse-dot { width: 7px; height: 7px; border-radius: 50%;
+      background: var(--violet); animation: pulse-ring 1.4s ease-in-out infinite; }
+    .activity-header .done-icon { color: var(--accent); font-size: 13px; }
+    .activity-header .thinking-txt { margin-left: auto; font-size: 11px; color: var(--text-muted); }
 
-    .message.error .bubble {
-      background: var(--error-bg);
-      border: 1px solid var(--error-border);
-      color: #fca5a5;
-    }
+    /* Agent row */
+    .agent-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+      border-bottom: 1px solid rgba(63,63,70,0.5); }
+    .agent-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; padding: 2px 7px; border-radius: 5px; flex-shrink: 0; }
+    .agent-badge.coding   { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .agent-badge.deployment { background: rgba(6,182,212,0.15); color: #22d3ee; }
+    .agent-badge.planning { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .agent-badge.testing  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .agent-badge.docs     { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .agent-badge.query    { background: rgba(156,163,175,0.15); color: #d1d5db; }
+    .agent-instruction { font-size: 12px; color: var(--text-muted); truncate: true;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px; }
 
-    /* Agent activity log */
-    .activity {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      width: 90%;
-    }
+    /* Agent sections — each agent gets its own collapsible group */
+    .agent-section { border-top: 1px solid rgba(63,63,70,0.5); }
+    .agent-section:first-of-type { border-top: none; }
+    .agent-section-header { display: flex; align-items: center; gap: 8px;
+      padding: 7px 14px; background: rgba(0,0,0,0.2); }
+    .agent-section-instruction { font-size: 11px; color: var(--text-muted); flex: 1;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .agent-section-status { font-size: 10px; color: var(--amber); font-weight: 600;
+      flex-shrink: 0; letter-spacing: 0.03em; }
+    .agent-section-status.spinning-txt { animation: pulse-ring 1.2s ease-in-out infinite; }
+    .agent-section-tools { padding: 6px 10px 8px 24px; display: flex; flex-direction: column; gap: 4px; }
 
-    .activity-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
+    /* Tool cards */
+    .tools-list { padding: 8px 10px; display: flex; flex-direction: column; gap: 5px;
+      max-height: 260px; overflow-y: auto; }
+    .tools-list::-webkit-scrollbar { width: 4px; }
+    .tools-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-    .activity-log {
-      padding: 10px 14px;
-      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-      font-size: 11px;
-      color: var(--text-muted);
-      max-height: 180px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
+    .tool-card { display: flex; align-items: flex-start; gap: 9px; padding: 7px 10px;
+      border-radius: 8px; border: 1px solid transparent; transition: all 0.2s ease;
+      animation: slide-in 0.18s ease; }
+    .tool-card.running { background: var(--amber-dim); border-color: rgba(245,158,11,0.25); }
+    .tool-card.done    { background: rgba(34,197,94,0.06); border-color: rgba(34,197,94,0.2); }
+    .tool-card.error   { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); }
 
-    .log-line { display: flex; gap: 8px; }
-    .log-line.agent { color: #67e8f9; }
-    .log-line.tool { color: #fbbf24; }
-    .log-line.success { color: #4ade80; }
-    .log-line.error { color: #f87171; }
-    .log-line.info { color: var(--text-muted); }
+    .tool-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .tool-icon.spinning { animation: spin 1s linear infinite; display: inline-block; }
+    .tool-body { flex: 1; min-width: 0; }
+    .tool-name { font-size: 11px; font-weight: 700; font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--amber); margin-bottom: 2px; }
+    .tool-card.done .tool-name { color: var(--accent); }
+    .tool-card.error .tool-name { color: var(--red); }
+    .tool-input { font-size: 10px; color: var(--text-muted); font-family: 'SF Mono', monospace;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; }
+    .tool-result { font-size: 10px; color: #86efac; font-family: 'SF Mono', monospace;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; margin-top: 2px; }
 
-    /* Thinking indicator */
-    .thinking {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      border-bottom-left-radius: 4px;
-      font-size: 13px;
-      color: var(--text-muted);
-      width: fit-content;
-    }
-
-    .dots {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      background: var(--accent);
-      border-radius: 50%;
-      animation: pulse 1.4s ease-in-out infinite;
-    }
-
+    /* Thinking dots */
+    .thinking-inline { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      font-size: 12px; color: var(--text-muted); }
+    .dots { display: flex; gap: 4px; }
+    .dot { width: 6px; height: 6px; background: var(--violet); border-radius: 50%;
+      animation: bounce-dot 1.4s ease-in-out infinite; }
     .dot:nth-child(2) { animation-delay: 0.2s; }
     .dot:nth-child(3) { animation-delay: 0.4s; }
 
-    @keyframes pulse {
-      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-      40% { opacity: 1; transform: scale(1); }
-    }
+    /* Success banner */
+    .success-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+      font-size: 12px; color: var(--accent); border-top: 1px solid rgba(63,63,70,0.5); }
 
-    /* Input area */
-    .input-area {
-      border-top: 1px solid var(--border);
-      padding: 16px 20px;
-      background: var(--bg-primary);
-      flex-shrink: 0;
-    }
-
-    .input-wrapper {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 14px;
-      transition: border-color 0.15s;
-    }
-
-    .input-wrapper:focus-within {
-      border-color: var(--accent);
-    }
-
-    #chat-input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: var(--text-primary);
-      font-size: 14px;
-      font-family: inherit;
-      resize: none;
-      max-height: 120px;
-      min-height: 22px;
-      line-height: 1.5;
-    }
-
+    /* Input */
+    .input-area { border-top: 1px solid var(--border); padding: 14px 20px;
+      background: var(--bg-primary); flex-shrink: 0; }
+    .input-wrapper { display: flex; gap: 10px; align-items: flex-end;
+      background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;
+      padding: 10px 14px; transition: border-color 0.15s; }
+    .input-wrapper:focus-within { border-color: var(--accent); }
+    .input-wrapper.has-image { border-color: var(--violet); }
+    #chat-input { flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text-primary); font-size: 14px; font-family: inherit; resize: none;
+      max-height: 120px; min-height: 22px; line-height: 1.5; }
     #chat-input::placeholder { color: var(--text-muted); }
 
-    #send-btn {
+    /* Attach button */
+    #attach-btn { width: 32px; height: 32px; background: transparent; border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; flex-shrink: 0; font-size: 15px; color: var(--text-muted); }
+    #attach-btn:hover { border-color: var(--violet); color: #a78bfa; background: var(--violet-dim); }
+    #attach-btn.active { border-color: var(--violet); color: #a78bfa; background: var(--violet-dim); }
+
+    #send-btn { width: 32px; height: 32px; background: var(--accent); border: none;
+      border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; flex-shrink: 0; font-size: 16px; color: #000; font-weight: bold; }
+    #send-btn:hover { background: #16a34a; transform: scale(1.05); }
+    #send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; color: var(--text-muted); }
+
+    /* Image preview strip */
+    .image-preview-strip { display: flex; align-items: center; gap: 8px; padding: 8px 4px 0; }
+    .img-thumb-wrap { position: relative; display: inline-flex; }
+    .img-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px;
+      border: 1px solid var(--violet); cursor: pointer; }
+    .img-remove { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px;
+      background: var(--red); border-radius: 50%; border: none; cursor: pointer; color: #fff;
+      font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .img-label { font-size: 11px; color: var(--violet); }
+
+    /* Document preview strip */
+    .doc-preview-strip { display: flex; align-items: center; gap: 10px; padding: 8px 4px 0; }
+    .doc-chip {
+      display: flex; align-items: center; gap: 7px; background: var(--bg-tertiary);
+      border: 1px solid #3b5bdb; border-radius: 8px; padding: 5px 10px;
+      font-size: 11px; color: #748ffc; max-width: 260px;
+    }
+    .doc-chip-icon { font-size: 14px; flex-shrink: 0; }
+    .doc-chip-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .doc-chip-size { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+    .doc-chip-remove {
+      background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 12px;
+      padding: 0 0 0 4px; display: flex; align-items: center; flex-shrink: 0;
+      transition: color 0.12s;
+    }
+    .doc-chip-remove:hover { color: #f87171; }
+    .doc-chip-label { font-size: 11px; color: #748ffc; }
+
+    /* Drag-over overlay */
+    .drag-overlay { display: none; position: fixed; inset: 0; background: rgba(139,92,246,0.18);
+      border: 3px dashed var(--violet); border-radius: 12px; z-index: 999;
+      align-items: center; justify-content: center; font-size: 18px; color: #a78bfa; font-weight: 700; }
+    .drag-overlay.active { display: flex; }
+
+
+    #pause-btn {
       width: 32px;
       height: 32px;
-      background: var(--accent);
+      background: #dc2626;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       transition: all 0.15s;
       flex-shrink: 0;
-      font-size: 16px;
-      color: #000;
+      font-size: 14px;
+      color: #fff;
     }
-
-    #send-btn:hover { background: #16a34a; transform: scale(1.05); }
-    #send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
-
-    .input-hint {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 8px;
-      text-align: center;
-    }
+    #pause-btn:hover { background: #b91c1c; transform: scale(1.05); }
+    #pause-btn.visible { display: flex; }
+    .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 7px; text-align: center; }
 
     /* Status bar */
-    .statusbar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 20px;
+    .statusbar { display: flex; align-items: center; gap: 6px; padding: 5px 20px;
+      background: var(--bg-secondary); border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .status-dot.busy { background: var(--amber); animation: pulse-ring 1s ease-in-out infinite; }
+    .status-dot.offline { background: var(--red); }
+
+    /* Markdown */
+    .bubble strong { color: var(--text-primary); font-weight: 700; }
+    .bubble code { background: var(--bg-tertiary); padding: 1px 5px; border-radius: 4px;
+      font-family: 'SF Mono', monospace; font-size: 12px; color: var(--cyan); }
+
+    /* ── PROTOTYPE CARD ── */
+    .proto-card { background: var(--bg-secondary); border: 1px solid var(--accent);
+      border-radius: 12px; overflow: hidden; max-width: 92%; animation: slide-in 0.22s ease; }
+    .proto-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+      background: var(--accent-dim); border-bottom: 1px solid rgba(34,197,94,0.2);
+      font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; }
+    .proto-title { padding: 10px 14px 4px; font-size: 13px; font-weight: 600;
+      color: var(--text-primary); }
+    .proto-btn { display: inline-flex; align-items: center; gap: 6px; margin: 8px 14px;
+      background: var(--accent); color: #000; font-size: 12px; font-weight: 700;
+      padding: 7px 16px; border-radius: 7px; text-decoration: none; cursor: pointer;
+      border: none; transition: all 0.15s; }
+    .proto-btn:hover { background: #16a34a; transform: scale(1.03); }
+    .proto-actions { display: flex; gap: 8px; padding: 8px 14px 12px; flex-wrap: wrap; }
+    .proto-actions button { background: var(--bg-tertiary); border: 1px solid var(--border);
+      border-radius: 7px; padding: 7px 14px; font-size: 12px; color: var(--text-secondary);
+      cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .proto-actions button:hover { border-color: var(--accent); color: var(--text-primary);
+      background: var(--accent-dim); }
+    .proto-actions button.proceed-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .proto-actions button.change-btn:hover { border-color: var(--violet); color: #a78bfa;
+      background: var(--violet-dim); }
+
+    /* Animations */
+    @keyframes slide-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes bounce-dot { 0%,80%,100% { opacity:0.3; transform:scale(0.8); } 40% { opacity:1; transform:scale(1); } }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes pulse-ring { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  
+    /* ── Step Confirmation Card ── */
+    .confirm-card {
       background: var(--bg-secondary);
-      border-top: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text-muted);
-      flex-shrink: 0;
+      border: 1px solid rgba(59,130,246,0.35);
+      border-radius: 12px;
+      padding: 16px;
+      width: 90%;
+      margin-top: 6px;
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.1);
     }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
+    .confirm-done-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px;
     }
-
-    .status-dot.offline { background: #f87171; }
-
-    /* Markdown-ish formatting */
-    .bubble code {
-      background: var(--bg-tertiary);
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-family: 'SF Mono', monospace;
-      font-size: 12px;
-      color: #67e8f9;
+    .confirm-check {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; flex-shrink: 0;
     }
+    .confirm-done-label {
+      font-size: 13px; font-weight: 700; color: #fafafa;
+    }
+    .confirm-pipeline {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .confirm-pipeline-step {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 600; color: #a1a1aa;
+    }
+    .confirm-pipeline-step.next { color: #fafafa; }
+    .confirm-pipeline-arrow { color: #52525b; font-size: 10px; }
+    .confirm-buttons {
+      display: flex; gap: 8px;
+    }
+    .confirm-btn-yes {
+      flex: 1; padding: 9px 14px; border-radius: 8px;
+      background: #22c55e; color: #000; font-size: 12px; font-weight: 700;
+      border: none; cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .confirm-btn-yes:hover { background: #16a34a; transform: translateY(-1px); }
+    .confirm-btn-no {
+      flex: 1; padding: 9px 14px; border-radius: 8px;
+      background: var(--bg-tertiary); color: #a1a1aa; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .confirm-btn-no:hover { border-color: #ef4444; color: #ef4444; }
 
-    .bubble strong { color: var(--text-primary); font-weight: 600; }
-  </style>
+    
+    /* ── Error state ── */
+    .activity-panel.has-error {
+      border-color: rgba(239,68,68,0.5) !important;
+      box-shadow: 0 0 0 1px rgba(239,68,68,0.15);
+    }
+    .activity-panel.has-error .activity-hdr {
+      border-bottom-color: rgba(239,68,68,0.3);
+    }
+    .error-card {
+      margin: 8px 10px;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.35);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .error-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .error-body { flex: 1; }
+    .error-title { font-size: 12px; font-weight: 700; color: #f87171; margin-bottom: 3px; }
+    .error-msg { font-size: 11px; color: #fca5a5; font-family: monospace; word-break: break-word; }
+    /* Status bar error state */
+    .statusbar.error-state { background: rgba(239,68,68,0.08); border-top-color: rgba(239,68,68,0.3); }
+    .status-dot.error { background: #ef4444 !important; animation: none !important; }
+    /* Stop all spinning on error */
+    .has-error .spin { animation: none; content: '✗'; color: #f87171; }
+    .has-error .tool-status .spin::before { content: '❌'; }
+
+    </style>
 </head>
 <body>
   <div class="app">
-    <!-- Title bar -->
     <div class="titlebar">
+      <button id="sidebar-toggle-btn" title="Toggle sidebar">☰</button>
       <div class="titlebar-title">
-        <span class="titlebar-icon">🔨</span>
-        <span>Forge</span>
+        <span class="titlebar-badge">🔨</span>
+        <span>FORGE</span>
       </div>
       <div class="titlebar-project" id="project-name">Loading...</div>
     </div>
 
-    <!-- Messages -->
-    <div class="messages" id="messages">
-      <div class="welcome" id="welcome">
-        <div class="welcome-icon">🔨</div>
-        <div class="welcome-title">Forge Agent</div>
-        <div class="welcome-sub">Your AI development team. Plan, code, test and deploy in plain English.</div>
-        <div class="suggestions">
-          <div class="suggestion" onclick="sendSuggestion(this)">Add a new agent template</div>
-          <div class="suggestion" onclick="sendSuggestion(this)">Fix build errors</div>
-          <div class="suggestion" onclick="sendSuggestion(this)">Commit and deploy latest changes</div>
-          <div class="suggestion" onclick="sendSuggestion(this)">What agents are in the education hub?</div>
-          <div class="suggestion" onclick="sendSuggestion(this)">Run the build and check for errors</div>
-          <div class="suggestion" onclick="sendSuggestion(this)">Update the GADSL checker system prompt</div>
+    <div class="main-layout">
+      <!-- LEFT SIDEBAR -->
+      <div class="left-sidebar" id="left-sidebar">
+        <div class="left-sidebar-inner">
+          <!-- New session -->
+          <div class="sidebar-actions">
+            <button class="new-session-btn" id="new-session-btn">
+              <span>＋</span> New Session
+            </button>
+          </div>
+
+          <!-- TOP: Current task steps -->
+          <div class="sidebar-top">
+            <div class="sidebar-label">Current Task</div>
+            <div class="todo-list" id="todo-list">
+              <div class="todo-empty">No active task yet.<br>Start chatting to see your task pipeline here.</div>
+            </div>
+          </div>
+
+          <!-- BOTTOM: Session history -->
+          <div class="sidebar-bottom">
+            <div class="sidebar-label">Recent Sessions</div>
+            <div class="session-list" id="session-list">
+              <div class="session-item">Today's session</div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Input -->
-    <div class="input-area">
-      <div class="input-wrapper">
-        <textarea
-          id="chat-input"
-          placeholder="Tell Forge what to build, fix, or deploy..."
-          rows="1"
-        ></textarea>
-        <button id="send-btn" onclick="sendMessage()" title="Send (Enter)">&#8593;</button>
+      <!-- Chat column -->
+      <div class="chat-col">
+        <div class="messages" id="messages">
+          <div class="welcome" id="welcome">
+            <div class="welcome-icon">🔨</div>
+            <div class="welcome-title">Forge Agent</div>
+            <div class="welcome-sub">Your AI dev team. Plan, code, test and deploy the AgenticAI platform in plain English.</div>
+            <div class="suggestions">
+              <div class="suggestion" data-text="Add a new agent template">🆕 Add a new agent template</div>
+              <div class="suggestion" data-text="Fix build errors">🐛 Fix build errors</div>
+              <div class="suggestion" data-text="Commit and deploy latest changes">🚀 Commit and deploy latest changes</div>
+              <div class="suggestion" data-text="What agents are in the education hub?">🔍 What agents are in the education hub?</div>
+              <div class="suggestion" data-text="Run the build and check for errors">🔨 Run the build and check for errors</div>
+              <div class="suggestion" data-text="Have you pushed the code?">📋 Have you pushed the code?</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drag-drop overlay -->
+        <div class="drag-overlay" id="drag-overlay">📎 Drop image to analyse</div>
+
+        <!-- Hidden file inputs -->
+        <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" />
+        <input type="file" id="doc-input" accept=".pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py,.docx" style="display:none" />
+
+        <div class="input-area">
+          <!-- Image preview strip -->
+          <div class="image-preview-strip" id="image-preview-strip" style="display:none">
+            <div class="img-thumb-wrap" id="img-thumb-wrap">
+              <img id="img-thumb" class="img-thumb" src="" alt="attached" />
+              <button class="img-remove" id="img-remove" title="Remove image">✕</button>
+            </div>
+            <span class="img-label" id="img-label">Image attached — describe what to do with it</span>
+          </div>
+          <!-- Document preview strip -->
+          <div class="doc-preview-strip" id="doc-preview-strip" style="display:none">
+            <div class="doc-chip">
+              <span class="doc-chip-icon" id="doc-chip-icon">📄</span>
+              <span class="doc-chip-name" id="doc-chip-name">document.pdf</span>
+              <span class="doc-chip-size" id="doc-chip-size"></span>
+              <button class="doc-chip-remove" id="doc-remove" title="Remove document">✕</button>
+            </div>
+            <span class="doc-chip-label" id="doc-label">Use as KB / context for this task</span>
+          </div>
+          <div class="input-wrapper" id="input-wrapper">
+            <button id="attach-btn" title="Attach image (or drag & drop)">📎</button>
+            <button id="doc-btn" title="Attach document / PDF as knowledge base or context">📄</button>
+            <textarea id="chat-input" placeholder="Tell Forge what to build, fix, or deploy..." rows="1"></textarea>
+            <button id="pause-btn" title="Pause (stop current task)" onclick="pauseTask()">⏸</button>
+            <button id="send-btn" title="Send (Enter)">↑</button>
+          </div>
+          <div class="input-hint">Enter to send · Shift+Enter for newline · 📎 image · 📄 PDF/doc as context</div>
+        </div>
       </div>
-      <div class="input-hint">Enter to send &middot; Shift+Enter for new line</div>
+
     </div>
 
-    <!-- Status bar -->
     <div class="statusbar">
       <div class="status-dot" id="status-dot"></div>
       <span id="status-text">Ready</span>
@@ -412,186 +552,934 @@
     const messagesEl = document.getElementById('messages');
     const inputEl = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    const imageInput = document.getElementById('image-input');
+    const imagePreviewStrip = document.getElementById('image-preview-strip');
+    const imgThumb = document.getElementById('img-thumb');
+    const imgLabel = document.getElementById('img-label');
+    const imgRemoveBtn = document.getElementById('img-remove');
+    const inputWrapper = document.getElementById('input-wrapper');
+    const dragOverlay = document.getElementById('drag-overlay');
     const statusText = document.getElementById('status-text');
     const statusDot = document.getElementById('status-dot');
+
+    // ── Document attachment ──
+    const docBtn = document.getElementById('doc-btn');
+    const docInput = document.getElementById('doc-input');
+    const docPreviewStrip = document.getElementById('doc-preview-strip');
+    const docChipName = document.getElementById('doc-chip-name');
+    const docChipSize = document.getElementById('doc-chip-size');
+    const docChipIcon = document.getElementById('doc-chip-icon');
+    const docLabelEl = document.getElementById('doc-label');
+    const docRemoveBtn = document.getElementById('doc-remove');
+    let attachedDoc = null; // { base64?, text?, name, docType: 'pdf'|'text' }
+
+    const DOC_ICONS = { pdf: '📕', txt: '📝', md: '📝', csv: '📊', json: '🔧', ts: '🔷', tsx: '🔷', js: '🟨', jsx: '🟨', py: '🐍', docx: '📘' };
+
+    function formatBytes(b) {
+      if (b < 1024) return b + ' B';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
+      return (b / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function showDocChip(name, size, docType) {
+      const ext = name.split('.').pop().toLowerCase();
+      docChipIcon.textContent = DOC_ICONS[ext] || '📄';
+      docChipName.textContent = name;
+      docChipSize.textContent = formatBytes(size);
+      docLabelEl.textContent = docType === 'pdf'
+        ? 'PDF attached — Forge will read it as knowledge context'
+        : 'Document attached — will be used as context / KB';
+      docPreviewStrip.style.display = 'flex';
+    }
+
+    function clearDoc() {
+      attachedDoc = null;
+      docPreviewStrip.style.display = 'none';
+      docInput.value = '';
+    }
+
+    docRemoveBtn.addEventListener('click', clearDoc);
+
+    docBtn.addEventListener('click', () => docInput.click());
+
+    docInput.addEventListener('change', () => {
+      const file = docInput.files[0];
+      if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      const isPdf = ext === 'pdf';
+      const isDocx = ext === 'docx';
+      const reader = new FileReader();
+
+      if (isPdf || isDocx) {
+        // Read as base64 for Anthropic document block
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          const base64 = dataUrl.split(',')[1];
+          attachedDoc = { base64, name: file.name, docType: 'pdf' };
+          showDocChip(file.name, file.size, 'pdf');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Read as plain text (txt, md, csv, json, ts, js, py, etc.)
+        reader.onload = (e) => {
+          const text = e.target.result;
+          attachedDoc = { text, name: file.name, docType: 'text' };
+          showDocChip(file.name, file.size, 'text');
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // ── Left Sidebar ──
+    const leftSidebar = document.getElementById('left-sidebar');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const newSessionBtn = document.getElementById('new-session-btn');
+    const todoList = document.getElementById('todo-list');
+    let todoItems = []; // { id, label, sublabel, status: 'pending'|'active'|'done'|'failed' }
+    let sidebarOpen = true; // open by default
+
+    const TODO_LABELS = {
+      planning:   { label: 'Understanding your request',    sub: 'Analysing what needs to be done' },
+      prototype:  { label: 'Designing a UI preview',        sub: 'Generating a visual mockup' },
+      coding:     { label: 'Writing the code',              sub: 'Building the feature' },
+      testing:    { label: 'Checking everything works',     sub: 'Running build & error checks' },
+      deployment: { label: 'Deploying to live',             sub: 'Pushing to GitHub & Vercel' },
+      docs:       { label: 'Updating documentation',        sub: 'Keeping docs in sync' },
+      query:      { label: 'Looking up information',        sub: 'Reading project files' },
+    };
+
+    function toggleSidebar() {
+      sidebarOpen = !sidebarOpen;
+      leftSidebar.classList.toggle('collapsed', !sidebarOpen);
+    }
+    sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    newSessionBtn.addEventListener('click', () => {
+      // Start a new session — clear current task steps only
+      todoItems = [];
+      renderTodoList();
+      // Reload the page to clear chat (simulates new session)
+      location.reload();
+    });
+
+    // ── Session tracking (localStorage) ──
+    const SESSION_KEY = 'forge_sessions';
+    const sessionListEl = document.getElementById('session-list');
+    let currentSessionId = null; // tracks the active session so we can update its name on completion
+
+    function loadSessions() {
+      try { return JSON.parse(localStorage.getItem(SESSION_KEY) || '[]'); } catch { return []; }
+    }
+    function saveSessions(sessions) {
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessions.slice(0, 20))); } catch {}
+    }
+
+    // Strip filler phrases and produce a clean title-cased session name (max 38 chars)
+    function smartSessionName(raw) {
+      const fillers = /^(please\s+|can you\s+|could you\s+|i want (you )?to\s+|i need (you )?to\s+|i'd like (you )?to\s+|let's\s+|let me\s+|help me\s+|make\s+|do\s+)/i;
+      let s = raw.replace(fillers, '').trim();
+      // Title-case first word
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+      // Truncate
+      return s.length > 38 ? s.slice(0, 38).replace(/\s+\S*$/, '') + '…' : s;
+    }
+
+    // Called ONCE when the user sends their first message in a new session
+    function startSession(rawMessage) {
+      if (!rawMessage) return;
+      const sessions = loadSessions();
+      const now = new Date();
+      const date = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const label = smartSessionName(rawMessage);
+      const id = 'sess_' + Date.now();
+      currentSessionId = id;
+      sessions.unshift({ id, label, date, time, ts: Date.now(), status: 'active' });
+      saveSessions(sessions);
+      renderSessionList();
+    }
+
+    // Called when task fully completes — optionally refines the session name from plan output
+    function completeSession(planTitle) {
+      if (!currentSessionId) return;
+      const sessions = loadSessions();
+      const idx = sessions.findIndex(s => s.id === currentSessionId);
+      if (idx === -1) return;
+      sessions[idx].status = 'done';
+      if (planTitle) sessions[idx].label = smartSessionName(planTitle);
+      saveSessions(sessions);
+      renderSessionList();
+    }
+
+    function renderSessionList() {
+      if (!sessionListEl) return;
+      const sessions = loadSessions();
+      if (sessions.length === 0) {
+        sessionListEl.innerHTML = '<div class="session-item muted">No sessions yet</div>';
+        return;
+      }
+      sessionListEl.innerHTML = sessions.map((s) => {
+        const dot = s.status === 'active' ? '🟡' : s.status === 'done' ? '🟢' : '○';
+        return `<div class="session-item" title="${s.label} · ${s.date} ${s.time || ''}">
+          <span class="session-dot">${dot}</span>
+          <span class="session-body">
+            <span class="session-label">${s.label}</span>
+            <span class="session-meta">${s.date}${s.time ? ' · ' + s.time : ''}</span>
+          </span>
+        </div>`;
+      }).join('');
+    }
+
+    // Render sessions on load
+    renderSessionList();
+
+    function setTodoPlan(agentKeys) {
+      // Smart merge: if we already have items (continuation of same task),
+      // keep existing done/failed statuses and only add genuinely new steps.
+      const existingMap = {};
+      todoItems.forEach(t => { existingMap[t.id] = t; });
+
+      todoItems = agentKeys.map(k => {
+        if (existingMap[k]) return existingMap[k]; // preserve existing status
+        return {
+          id: k,
+          label: (TODO_LABELS[k] || { label: k }).label,
+          sub:   (TODO_LABELS[k] || { sub: '' }).sub,
+          status: 'pending'
+        };
+      });
+      renderTodoList();
+      // Ensure sidebar is open when a plan starts
+      if (!sidebarOpen) toggleSidebar();
+    }
+
+    function setTodoActive(agentKey) {
+      todoItems = todoItems.map(t =>
+        t.id === agentKey ? { ...t, status: 'active' } : t
+      );
+      renderTodoList();
+    }
+
+    function setTodoDone(agentKey) {
+      todoItems = todoItems.map(t =>
+        t.id === agentKey ? { ...t, status: 'done' } : t
+      );
+      renderTodoList();
+    }
+
+    function setTodoFailed(agentKey) {
+      todoItems = todoItems.map(t =>
+        t.id === agentKey ? { ...t, status: 'failed' } : t
+      );
+      renderTodoList();
+    }
+
+    function renderTodoList() {
+      if (todoItems.length === 0) {
+        todoList.innerHTML = '<div class="todo-empty">No active task yet.<br>Start chatting to see your task pipeline here.</div>';
+        return;
+      }
+      todoList.innerHTML = todoItems.map((t, i) => {
+        const iconHtml = t.status === 'pending'  ? '<span style="color:#52525b;font-size:12px">○</span>'
+                       : t.status === 'active'   ? '<div class="todo-spinner"></div>'
+                       : t.status === 'done'     ? '<span style="color:#22c55e">✓</span>'
+                       : /* failed */              '<span style="color:#ef4444">✗</span>';
+        const divider = i > 0 ? '<div class="todo-divider"></div>' : '';
+        return `${divider}<div class="todo-item ${t.status}" data-id="${t.id}">
+          <div class="todo-icon">${iconHtml}</div>
+          <div>
+            <div class="todo-text">${t.label}</div>
+            <div class="todo-sub">${t.sub}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
     const projectNameEl = document.getElementById('project-name');
 
     let isProcessing = false;
+    let currentPanel = null;
+    let currentToolsEl = null;
+    let toolCards = {};
 
-    // Load status on start
+    // ── Image state ──
+    let attachedImage = null; // { base64: string, mediaType: string, name: string }
+
+    function setAttachedImage(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        const base64 = dataUrl.split(',')[1];
+        const mediaType = file.type || 'image/png';
+        attachedImage = { base64, mediaType, name: file.name };
+        imgThumb.src = dataUrl;
+        imgLabel.textContent = file.name + ' — describe what to do with it';
+        imagePreviewStrip.style.display = 'flex';
+        attachBtn.classList.add('active');
+        inputWrapper.classList.add('has-image');
+        inputEl.placeholder = 'Describe what to do with this image...';
+        inputEl.focus();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearAttachedImage() {
+      attachedImage = null;
+      imgThumb.src = '';
+      imagePreviewStrip.style.display = 'none';
+      attachBtn.classList.remove('active');
+      inputWrapper.classList.remove('has-image');
+      inputEl.placeholder = 'Tell Forge what to build, fix, or deploy...';
+      imageInput.value = '';
+    }
+
+    // Attach button click → open file picker
+    attachBtn.addEventListener('click', () => imageInput.click());
+
+    // File selected
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) setAttachedImage(file);
+    });
+
+    // Remove image
+    imgRemoveBtn.addEventListener('click', clearAttachedImage);
+
+    // Drag & drop anywhere on window
+    document.addEventListener('dragover', (e) => { e.preventDefault(); dragOverlay.classList.add('active'); });
+    document.addEventListener('dragleave', (e) => { if (!e.relatedTarget) dragOverlay.classList.remove('active'); });
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragOverlay.classList.remove('active');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) setAttachedImage(file);
+    });
+
+    // Paste image from clipboard
+    document.addEventListener('paste', (e) => {
+      const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
+      if (item) {
+        const file = item.getAsFile();
+        if (file) setAttachedImage(file);
+      }
+    });
+
+    // ── Init ──
     window.forge.status().then(status => {
       projectNameEl.textContent = status.projectName || 'Not configured';
       if (!status.configured) {
         statusDot.classList.add('offline');
-        statusText.textContent = 'API key not configured';
+        statusText.textContent = 'API key not configured — set ANTHROPIC_API_KEY in .env';
       }
     });
 
-    // Live activity log from main process
-    let currentActivityEl = null;
+    // ── Tool icon map ──
+    const TOOL_ICONS = {
+      read_file: '📄', write_file: '✏️', edit_file: '🖊️', list_files: '📁',
+      search_in_files: '🔎', git_status: '📊', git_diff: '🔍', git_log: '📜',
+      git_commit_and_push: '🚀', git_create_branch: '🌿', run_command: '⚡',
+      kb_read: '🧠', kb_write: '💾',
+    };
+
+    // ── Agent colour class ──
+    function agentClass(name) {
+      const n = (name || '').toLowerCase();
+      if (n.includes('coding') || n.includes('code')) return 'coding';
+      if (n.includes('deploy')) return 'deployment';
+      if (n.includes('plan')) return 'planning';
+      if (n.includes('test')) return 'testing';
+      if (n.includes('doc')) return 'docs';
+      return 'query';
+    }
+
+    // ── Live log from main process ──
+    // Each agent gets its own collapsible section; tool cards nest inside
+    let currentAgentSection = null; // the .agent-section currently active
+
+    function getOrCreateAgentSection(agentName, instruction) {
+      // Create a new grouped section for this agent
+      const section = document.createElement('div');
+      section.className = 'agent-section';
+      const cls = agentClass(agentName);
+      section.innerHTML =
+        `<div class="agent-section-header">` +
+          `<span class="agent-badge ${cls}">${agentName.toUpperCase()}</span>` +
+          `<span class="agent-section-instruction">${(instruction || '').slice(0, 70)}</span>` +
+          `<span class="agent-section-status spinning-txt">working...</span>` +
+        `</div>` +
+        `<div class="agent-section-tools"></div>`;
+      currentPanel.appendChild(section);
+      return section;
+    }
+
     window.forge.onLog((log) => {
-      if (!currentActivityEl) return;
-      const logList = currentActivityEl.querySelector('.activity-log');
-      if (!logList) return;
-      const line = document.createElement('div');
-      const typeClass = log.type === 'error' ? 'error' : log.type === 'success' ? 'success' : log.type === 'agent' ? 'agent' : log.type === 'tool' ? 'tool' : 'info';
-      line.className = 'log-line ' + typeClass;
-      line.textContent = log.message;
-      logList.appendChild(line);
-      logList.scrollTop = logList.scrollHeight;
-      // Update the "Thinking..." text with current step
-      const thinkingText = document.getElementById('thinking-label');
-      if (thinkingText && log.type === 'agent') {
-        const clean = log.message.replace(/^\[.*?\]\s*/, '').slice(0, 55);
-        thinkingText.textContent = clean + '...';
+      if (!currentPanel) return;
+      const header = currentPanel.querySelector('.activity-header');
+      const thinkingInline = currentPanel.querySelector('.thinking-inline');
+
+      if (log.type === 'agent') {
+        if (thinkingInline) thinkingInline.remove();
+        // Mark previous section as done
+        if (currentAgentSection) {
+          const s = currentAgentSection.querySelector('.agent-section-status');
+          if (s) { s.textContent = '✅ done'; s.classList.remove('spinning-txt'); s.style.color = '#4ade80'; }
+        }
+        // Create new grouped section
+        currentAgentSection = getOrCreateAgentSection(log.agent || 'Agent', log.message);
+        currentToolsEl = currentAgentSection.querySelector('.agent-section-tools');
+        if (header) {
+          const t = header.querySelector('.thinking-txt');
+          if (t) t.textContent = (log.agent || '') + ' working...';
+        }
+        // Update todo: mark this agent as active
+        const agentKey = (log.agent || '').toLowerCase().replace(' agent','').replace('-agent','').trim();
+        setTodoActive(agentKey);
+        scrollToBottom();
       }
+
+      if (log.type === 'tool_start') {
+        const card = document.createElement('div');
+        card.className = 'tool-card running';
+        card.innerHTML =
+          `<span class="tool-icon spinning">⚙️</span>` +
+          `<div class="tool-body">` +
+            `<div class="tool-name">${TOOL_ICONS[log.tool] || '🔧'} ${log.tool}</div>` +
+            `<div class="tool-input">${(log.input || '').replace(/</g,'&lt;')}</div>` +
+          `</div>`;
+        if (currentToolsEl) currentToolsEl.appendChild(card);
+        toolCards[log.tool] = card;
+        scrollToBottom();
+      }
+
+      if (log.type === 'tool_done') {
+        const card = toolCards[log.tool];
+        if (card) {
+          card.className = 'tool-card done';
+          const iconEl = card.querySelector('.tool-icon');
+          if (iconEl) { iconEl.textContent = '✅'; iconEl.classList.remove('spinning'); }
+          const body = card.querySelector('.tool-body');
+          if (body && log.result) {
+            const r = document.createElement('div');
+            r.className = 'tool-result';
+            r.textContent = log.result.slice(0, 120);
+            body.appendChild(r);
+          }
+        }
+        scrollToBottom();
+      }
+
+      if (log.type === 'success') {
+        // Mark current agent section done
+        if (currentAgentSection) {
+          const s = currentAgentSection.querySelector('.agent-section-status');
+          if (s) { s.textContent = '✅ done'; s.classList.remove('spinning-txt'); s.style.color = '#4ade80'; }
+        }
+        // Update todo: mark completed agent as done
+        const successKey = (log.message || '').toLowerCase().replace(' completed','').replace(' agent','').trim();
+        setTodoDone(successKey);
+      }
+
+      // Parse task plan from info log — "Tasks: planning → coding → testing"
+      if (log.type === 'info' && log.message && log.message.startsWith('Tasks:')) {
+        const tasksStr = log.message.replace('Tasks:', '').trim();
+        const keys = tasksStr.split('→').map(s => s.trim().toLowerCase()
+          .replace('📋 planning','planning').replace('💻 coding','coding')
+          .replace('🧪 testing','testing').replace('🚀 deployment','deployment')
+          .replace('🔍 query','query').replace('📝 docs','docs').replace('🎨 prototype','prototype')
+        ).filter(Boolean);
+        if (keys.length > 0) setTodoPlan(keys);
+      }
+
+      if (log.type === 'error') {
+        const card = document.createElement('div');
+        card.className = 'tool-card error';
+        card.innerHTML = `<span class="tool-icon">❌</span><div class="tool-body"><div class="tool-name">Error</div><div class="tool-input">${log.message}</div></div>`;
+        if (currentToolsEl) currentToolsEl.appendChild(card);
+        scrollToBottom();
+      }
+
+      scrollToBottom();
     });
 
-    // Auto-resize textarea
+    // ── Input events ──
     inputEl.addEventListener('input', () => {
       inputEl.style.height = 'auto';
       inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
     });
 
-    // Enter to send
-    inputEl.addEventListener('keydown', e => {
+    inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
+        e.stopPropagation();
         sendMessage();
       }
     });
 
-    function sendSuggestion(el) {
-      inputEl.value = el.textContent;
+    sendBtn.addEventListener('click', () => sendMessage());
+
+    // Wire suggestion chips via event delegation (no inline onclick)
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('.suggestion');
+      if (chip && chip.dataset.text) {
+        inputEl.value = chip.dataset.text;
+        inputEl.dispatchEvent(new Event('input')); // resize
+        sendMessage();
+      }
+    });
+
+    // ── Send message ──
+    function sendMessage() {
+      const text = inputEl.value.trim();
+      if ((!text && !attachedImage && !attachedDoc) || isProcessing) return;
+
+      const welcome = document.getElementById('welcome');
+      const isFirstMessage = !!welcome; // true only if welcome screen still showing
+      if (welcome) welcome.remove();
+
+      const imageToSend = attachedImage ? { ...attachedImage } : null;
+      const docToSend = attachedDoc ? { ...attachedDoc } : null;
+      const displayText = text
+        || (imageToSend ? '🖼️ ' + imageToSend.name : '')
+        || (docToSend ? '📄 ' + docToSend.name : '');
+
+      addUserMessage(displayText, imageToSend ? imgThumb.src : null);
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      clearAttachedImage();
+      clearDoc();
+
+      // Only start a new session entry on the very first message — NOT on confirmations/follow-ups
+      if (isFirstMessage) startSession(displayText);
+
+      setProcessing(true, isFirstMessage);
+      const { panelEl, toolsListEl, panelMsgEl } = createActivityPanel();
+      currentPanel = panelEl;
+      currentToolsEl = toolsListEl;
+      currentAgentSection = null;
+      toolCards = {};
+
+      try {
+        window.forge.send(text || 'Analyse this input', imageToSend, docToSend).then(result => {
+          finalisePanel(panelMsgEl);
+          currentPanel = null;
+          currentToolsEl = null;
+          currentAgentSection = null;
+          setProcessing(false);
+          if (result.error) {
+            addMessage('error', result.error);
+            completeSession(null); // mark done even on error so dot goes grey
+          } else {
+            // Extract a smart session title from the plan header if present
+            // e.g. "## 📋 Plan: LinkedIn Lead Generation Agent" → "LinkedIn Lead Generation Agent"
+            const planMatch = result.output && result.output.match(/##\s*[📋🔍💡]?\s*Plan:\s*(.+)/);
+            const refinedTitle = planMatch ? planMatch[1].trim() : null;
+            completeSession(refinedTitle);
+            addForgeMessage(result.output);
+          }
+        }).catch(err => {
+          finalisePanel(panelMsgEl);
+          currentPanel = null;
+          currentToolsEl = null;
+        currentAgentSection = null;
+          setProcessing(false);
+          addMessage('error', err.message || 'Unknown error');
+        });
+      } catch (err) {
+        finalisePanel(panelMsgEl);
+        currentPanel = null;
+        currentToolsEl = null;
+        currentAgentSection = null;
+        setProcessing(false);
+        addMessage('error', (err && err.message) ? err.message : 'Failed to send message');
+      }
+    }
+
+    // ── Create live activity panel ──
+    function createActivityPanel() {
+      const msgEl = document.createElement('div');
+      msgEl.className = 'message forge';
+
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = 'Forge';
+
+      const panel = document.createElement('div');
+      panel.className = 'activity-panel';
+
+      panel.innerHTML =
+        '<div class="activity-header">' +
+          '<span class="pulse-dot"></span>' +
+          '<span>Agent Activity</span>' +
+          '<span class="thinking-txt">Routing task...</span>' +
+        '</div>' +
+        '<div class="thinking-inline">' +
+          '<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>' +
+          '<span>Starting...</span>' +
+        '</div>' +
+        '<div class="tools-list"></div>';
+
+      msgEl.appendChild(label);
+      msgEl.appendChild(panel);
+      messagesEl.appendChild(msgEl);
+      scrollToBottom();
+
+      const toolsListEl = panel.querySelector('.tools-list');
+      return { panelEl: panel, toolsListEl, panelMsgEl: msgEl };
+    }
+
+    // ── Finalise panel (mark done) ──
+    function finalisePanel(panelMsgEl) {
+      const panel = panelMsgEl.querySelector('.activity-panel');
+      if (!panel) return;
+      const header = panel.querySelector('.activity-header');
+      if (header) {
+        const dot = header.querySelector('.pulse-dot');
+        if (dot) { dot.style.animation = 'none'; dot.style.background = '#22c55e'; }
+        const t = header.querySelector('.thinking-txt');
+        if (t) { t.innerHTML = '<span class="done-icon">✅ Done</span>'; t.style.color = '#4ade80'; }
+      }
+      const thinking = panel.querySelector('.thinking-inline');
+      if (thinking) thinking.remove();
+    }
+
+    // ── Add messages ──
+    function addUserMessage(text, imageSrc) {
+      const el = document.createElement('div');
+      el.className = 'message user';
+      let content = '';
+      if (imageSrc) {
+        content += `<img src="${imageSrc}" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid #6d28d9;display:block;margin-bottom:6px;" />`;
+      }
+      if (text) content += `<div>${escHtml(text)}</div>`;
+      el.innerHTML = `<div class="message-label">You</div><div class="bubble">${content}</div>`;
+      messagesEl.appendChild(el);
+      scrollToBottom();
+    }
+
+    // ── Parse and render prototype-ready response ──
+    function parsePrototypeMarker(text) {
+      const match = text.match(/---PROTOTYPE_READY---\nurl:\s*(.+)\ntitle:\s*(.+)\n---PROTOTYPE_END---/);
+      if (!match) return null;
+      return { url: match[1].trim(), title: match[2].trim() };
+    }
+
+    function renderPrototypeCard(url, title) {
+      const msgEl = document.createElement('div');
+      msgEl.className = 'message forge';
+
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = 'Forge';
+
+      const card = document.createElement('div');
+      card.className = 'proto-card';
+
+      card.innerHTML =
+        `<div class="proto-header"><span>🎨</span><span>Prototype Ready</span></div>` +
+        `<div class="proto-title">${escHtml(title)}</div>` +
+        `<button class="proto-btn" id="proto-open-btn">Open Preview ↗</button>` +
+        `<div class="proto-actions">` +
+          `<button class="proceed-btn">✅ Looks good — proceed with coding</button>` +
+          `<button class="change-btn">✏️ Request changes</button>` +
+        `</div>`;
+
+      // Wire open button
+      card.querySelector('#proto-open-btn').addEventListener('click', () => {
+        window.forge.openExternal(url);
+      });
+
+      // Wire proceed button
+      card.querySelector('.proceed-btn').addEventListener('click', () => {
+        sendSuggestion('Looks good, proceed with coding');
+      });
+
+      // Wire change button
+      card.querySelector('.change-btn').addEventListener('click', () => {
+        promptChange();
+      });
+
+      msgEl.appendChild(label);
+      msgEl.appendChild(card);
+      messagesEl.appendChild(msgEl);
+      scrollToBottom();
+    }
+
+    function sendSuggestion(text) {
+      if (isProcessing) return;
+      inputEl.value = text;
+      inputEl.dispatchEvent(new Event('input'));
       sendMessage();
     }
 
-    function sendMessage() {
-      const text = inputEl.value.trim();
-      if (!text || isProcessing) return;
-
-      // Hide welcome
-      const welcome = document.getElementById('welcome');
-      if (welcome) welcome.remove();
-
-      // Add user message
-      addMessage('user', text);
+    function promptChange() {
+      inputEl.focus();
+      inputEl.placeholder = 'Describe what to change in the prototype...';
       inputEl.value = '';
-      inputEl.style.height = 'auto';
+    }
 
-      // Start processing
-      setProcessing(true);
-      const { thinkingId, activityEl } = addThinking();
-      currentActivityEl = activityEl;
+    function formatBubble(text) {
+      return text
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    }
 
-      window.forge.send(text).then(result => {
-        currentActivityEl = null;
-        removeThinking(thinkingId);
-        setProcessing(false);
+    function forgeLabel() {
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = 'Forge';
+      return label;
+    }
 
-        if (result.error) {
-          addMessage('error', result.error);
-        } else {
-          addForgeMessage(result.output);
-        }
-      }).catch(err => {
-        currentActivityEl = null;
-        removeThinking(thinkingId);
-        setProcessing(false);
-        addMessage('error', err.message || 'Unknown error');
-      });
+    function addTextBubble(text) {
+      if (!text.trim()) return;
+      const el = document.createElement('div');
+      el.className = 'message forge';
+      el.innerHTML = `<div class="message-label">Forge</div><div class="bubble">${formatBubble(text)}</div>`;
+      messagesEl.appendChild(el);
+    }
+
+    function addForgeMessage(text) {
+      // 0. Check for DEPLOY_PROMPT marker
+      const deployData = parseDeployMarker(text);
+      if (deployData) {
+        if (deployData.before) addTextBubble(deployData.before);
+        const wrap = document.createElement('div');
+        wrap.className = 'message forge';
+        wrap.appendChild(forgeLabel());
+        wrap.appendChild(renderDeployCard(deployData));
+        messagesEl.appendChild(wrap);
+        scrollToBottom();
+        return;
+      }
+
+      // 1. Check for CONFIRM marker
+      const confirmData = parseConfirmMarker(text);
+      if (confirmData) {
+        if (confirmData.before) addTextBubble(confirmData.before);
+        const wrap = document.createElement('div');
+        wrap.className = 'message forge';
+        wrap.appendChild(forgeLabel());
+        wrap.appendChild(renderConfirmCard(confirmData));
+        messagesEl.appendChild(wrap);
+        scrollToBottom();
+        return;
+      }
+
+      // 2. Check for PROTOTYPE marker
+      const protoMarker = parsePrototypeMarker(text);
+      if (protoMarker) {
+        const beforeMarker = text.split('---PROTOTYPE_READY---')[0].trim();
+        if (beforeMarker) addTextBubble(beforeMarker);
+        renderPrototypeCard(protoMarker.url, protoMarker.title);
+        scrollToBottom();
+        return;
+      }
+
+      // 3. Plain text
+      addTextBubble(text);
+      scrollToBottom();
     }
 
     function addMessage(type, text) {
       const el = document.createElement('div');
       el.className = 'message ' + type;
-
-      const label = document.createElement('div');
-      label.className = 'message-label';
-      label.textContent = type === 'user' ? 'You' : type === 'error' ? 'Error' : 'Forge';
-
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble';
-      bubble.textContent = text;
-
-      el.appendChild(label);
-      el.appendChild(bubble);
-      messagesEl.appendChild(el);
-      scrollToBottom();
-      return el;
-    }
-
-    function addForgeMessage(text) {
-      const el = document.createElement('div');
-      el.className = 'message forge';
-
-      const label = document.createElement('div');
-      label.className = 'message-label';
-      label.textContent = 'Forge';
-
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble';
-
-      // Simple markdown-ish formatting
-      const formatted = text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>');
-      bubble.innerHTML = formatted;
-
-      el.appendChild(label);
-      el.appendChild(bubble);
+      const label = type === 'error' ? 'Error' : 'Forge';
+      el.innerHTML = `<div class="message-label">${label}</div><div class="bubble">${escHtml(text)}</div>`;
       messagesEl.appendChild(el);
       scrollToBottom();
     }
 
-    function addThinking() {
-      const id = 'thinking-' + Date.now();
-      const el = document.createElement('div');
-      el.className = 'message forge';
-      el.id = id;
-
-      const label = document.createElement('div');
-      label.className = 'message-label';
-      label.textContent = 'Forge';
-
-      const thinking = document.createElement('div');
-      thinking.className = 'thinking';
-      thinking.innerHTML =
-        '<div class="dots">' +
-          '<div class="dot"></div>' +
-          '<div class="dot"></div>' +
-          '<div class="dot"></div>' +
-        '</div>' +
-        '<span id="thinking-label">Routing task...</span>';
-
-      // Activity log panel for live streaming
-      const activity = document.createElement('div');
-      activity.className = 'activity';
-      activity.innerHTML =
-        '<div class="activity-header">⚡ Agent Activity</div>' +
-        '<div class="activity-log"></div>';
-
-      el.appendChild(label);
-      el.appendChild(thinking);
-      el.appendChild(activity);
-      messagesEl.appendChild(el);
-      scrollToBottom();
-      return { thinkingId: id, activityEl: el };
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    function removeThinking(id) {
-      const el = document.getElementById(id);
-      if (el) el.remove();
+    // ── Processing state ──
+
+    const pauseBtn = document.getElementById('pause-btn');
+
+    function pauseTask() {
+      if (!isProcessing) return;
+      window.forge.cancel().then(() => {
+        pauseBtn.classList.remove('visible');
+        sendBtn.disabled = false;
+        isProcessing = false;
+        statusDot.style.background = '#f59e0b';
+        statusText.textContent = 'Paused';
+        addMessage('forge', '⏸️ Task paused. Say "resume" to continue from where we left off.');
+      });
     }
 
-    function setProcessing(val) {
+    function parseConfirmMarker(text) {
+      const match = text.match(/---CONFIRM_START---([\s\S]*?)---CONFIRM_END---/);
+      if (!match) return null;
+      const block = match[1];
+      const get = (key) => {
+        const m = block.match(new RegExp(key + ': (.+)'));
+        return m ? m[1].trim() : '';
+      };
+      return {
+        stepDone: get('step_done'),
+        nextStep: get('next_step'),
+        remaining: get('remaining'),
+        before: text.slice(0, text.indexOf('---CONFIRM_START---')).trim()
+      };
+    }
+
+    function renderConfirmCard(data) {
+      const card = document.createElement('div');
+      card.className = 'confirm-card';
+
+      // Done row
+      card.innerHTML = `
+        <div class="confirm-done-row">
+          <div class="confirm-check">✅</div>
+          <div class="confirm-done-label">${data.stepDone} done</div>
+        </div>
+        <div class="confirm-pipeline">
+          <span class="confirm-pipeline-step" style="color:#52525b;text-decoration:line-through">${data.stepDone}</span>
+          <span class="confirm-pipeline-arrow">→</span>
+          <span class="confirm-pipeline-step next">▶ ${data.nextStep}</span>
+          ${data.remaining && data.remaining !== data.nextStep ? `<span class="confirm-pipeline-arrow">→</span><span class="confirm-pipeline-step" style="color:#52525b">${data.remaining.replace(data.nextStep + ' → ', '').replace(data.nextStep, '')}</span>` : ''}
+        </div>
+        <div class="confirm-buttons">
+          <button class="confirm-btn-yes" onclick="sendConfirmYes(this)">✅ Yes, proceed with ${data.nextStep}</button>
+          <button class="confirm-btn-no" onclick="sendConfirmNo(this)">⏸ Pause for now</button>
+        </div>
+      `;
+      return card;
+    }
+
+    // ── Deploy Prompt Card ──
+    function parseDeployMarker(text) {
+      const match = text.match(/---DEPLOY_PROMPT---([\s\S]*?)---DEPLOY_END---/);
+      if (!match) return null;
+      const block = match[1];
+      const get = (key) => { const m = block.match(new RegExp(key + ': (.+)')); return m ? m[1].trim() : ''; };
+      return {
+        summary: get('summary'),
+        branch: get('branch'),
+        before: text.slice(0, text.indexOf('---DEPLOY_PROMPT---')).trim()
+      };
+    }
+
+    function renderDeployCard(data) {
+      const card = document.createElement('div');
+      card.className = 'confirm-card';
+      card.innerHTML = `
+        <div class="confirm-done-row">
+          <div class="confirm-check">🧪</div>
+          <div class="confirm-done-label">Build passed — ready to deploy</div>
+        </div>
+        <div style="font-size:12px;color:#a1a1aa;padding:6px 0 10px;line-height:1.6">
+          ${data.summary ? data.summary : 'Code is tested locally. Deploy to push live to GitHub &amp; Vercel.'}
+          ${data.branch ? `<br><span style="color:#71717a;font-size:11px">Branch: ${data.branch}</span>` : ''}
+        </div>
+        <div class="confirm-buttons">
+          <button class="confirm-btn-yes" onclick="sendDeploy(this)">🚀 Deploy now</button>
+          <button class="confirm-btn-no" onclick="dismissDeploy(this)">⏳ Not yet</button>
+        </div>
+      `;
+      return card;
+    }
+
+    function sendDeploy(btn) {
+      btn.closest('.confirm-card').style.opacity = '0.5';
+      btn.closest('.confirm-card').style.pointerEvents = 'none';
+      const input = document.getElementById('chat-input');
+      input.value = 'deploy';
+      sendMessage();
+    }
+
+    function dismissDeploy(btn) {
+      const card = btn.closest('.confirm-card');
+      card.style.opacity = '0.5';
+      card.style.pointerEvents = 'none';
+      card.querySelector('.confirm-btn-no').textContent = '✓ Saved for later';
+    }
+
+    function sendConfirmYes(btn) {
+      btn.closest('.confirm-card').style.opacity = '0.5';
+      btn.closest('.confirm-card').style.pointerEvents = 'none';
+      // Simulate sending "yes"
+      const input = document.getElementById('chat-input');
+      input.value = 'yes';
+      sendMessage();
+    }
+
+    function sendConfirmNo(btn) {
+      btn.closest('.confirm-card').style.opacity = '0.5';
+      btn.closest('.confirm-card').style.pointerEvents = 'none';
+      const input = document.getElementById('chat-input');
+      input.value = 'no';
+      sendMessage();
+    }
+
+
+    function showActivityError(panelEl, errorMsg) {
+      // Mark the active todo item as failed
+      todoItems = todoItems.map(t => t.status === 'active' ? { ...t, status: 'failed' } : t);
+      renderTodoList();
+      // Mark panel as errored
+      panelEl.classList.add('has-error');
+      // Update header
+      const hdr = panelEl.querySelector('.activity-hdr');
+      if (hdr) {
+        const statusSpan = hdr.querySelector('span:last-child');
+        if (statusSpan) {
+          statusSpan.style.color = '#f87171';
+          statusSpan.textContent = '❌ Error';
+        }
+        const pulse = hdr.querySelector('.pulse');
+        if (pulse) { pulse.style.background = '#ef4444'; pulse.style.animation = 'none'; }
+      }
+      // Add error card inside panel
+      const errCard = document.createElement('div');
+      errCard.className = 'error-card';
+      errCard.innerHTML =
+        '<span class="error-icon">🚨</span>' +
+        '<div class="error-body">' +
+          '<div class="error-title">Task stopped</div>' +
+          '<div class="error-msg">' + escHtml(errorMsg.slice(0, 200)) + '</div>' +
+        '</div>';
+      panelEl.appendChild(errCard);
+    }
+
+    function setErrorState(msg) {
+      const dot = document.getElementById('status-dot');
+      const txt = document.getElementById('status-text');
+      const bar = document.querySelector('.statusbar');
+      if (dot) { dot.className = 'status-dot error'; }
+      if (txt) { txt.textContent = 'Error — task stopped'; txt.style.color = '#f87171'; }
+      if (bar) bar.classList.add('error-state');
+    }
+
+    function clearErrorState() {
+      const dot = document.getElementById('status-dot');
+      const txt = document.getElementById('status-text');
+      const bar = document.querySelector('.statusbar');
+      if (dot) { dot.className = 'status-dot'; dot.style.background = '#22c55e'; }
+      if (txt) { txt.textContent = 'Ready'; txt.style.color = ''; }
+      if (bar) bar.classList.remove('error-state');
+    }
+
+    function setProcessing(val, isNewTask = false) {
       isProcessing = val;
       sendBtn.disabled = val;
       if (val) {
-        statusDot.style.background = '#fbbf24';
-        statusText.textContent = 'Processing...';
+        pauseBtn.classList.add('visible');
+        statusDot.className = 'status-dot busy';
+        statusText.textContent = 'Agents working...';
+        // Only clear todo list when this is a genuinely NEW task (not a confirmation/continuation).
+        // A new task is detected when setTodoPlan fires a fresh 'Tasks:' log — NOT on every send.
+        // isNewTask flag is set only from the first message of a session (welcome screen gone).
+        if (isNewTask) {
+          todoItems = [];
+          renderTodoList();
+        }
+        // If continuing (confirmation, "yes", etc.) keep existing todo items visible.
       } else {
-        statusDot.style.background = '#22c55e';
+        pauseBtn.classList.remove('visible');
+        statusDot.className = 'status-dot';
         statusText.textContent = 'Ready';
       }
     }

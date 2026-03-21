@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgent } from './base-agent';
+import { BaseAgent, MODELS } from './base-agent';
 import { PLANNING_AGENT_PROMPT } from '../config/prompts';
 
 export class PlanningAgent extends BaseAgent {
@@ -8,7 +8,9 @@ export class PlanningAgent extends BaseAgent {
       name: 'Planning',
       systemPrompt: PLANNING_AGENT_PROMPT,
       projectPath,
-      tools: ['file', 'kb']
+      tools: ['kb'],
+      model: MODELS.balanced,  // Sonnet: needs reasoning but not Opus
+      maxTokens: 2048,
     });
   }
 }

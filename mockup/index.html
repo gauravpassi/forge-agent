@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Forge — AI Development Platform</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #09090b;
+  --bg2:      #18181b;
+  --bg3:      #27272a;
+  --border:   #3f3f46;
+  --text:     #fafafa;
+  --muted:    #a1a1aa;
+  --faint:    #52525b;
+  --green:    #22c55e;
+  --green-dim:#14532d;
+  --blue:     #3b82f6;
+  --amber:    #f59e0b;
+  --red:      #ef4444;
+  --violet:   #8b5cf6;
+  --cyan:     #06b6d4;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-size: 13px; line-height: 1.5; overflow: hidden; }
+
+/* ── Layout ── */
+.app { display: flex; height: 100vh; flex-direction: column; }
+.titlebar {
+  height: 38px; background: var(--bg); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 10px;
+  flex-shrink: 0; position: relative;
+}
+.traffic { display: flex; gap: 6px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot.red { background: #ff5f57; }
+.dot.yellow { background: #febc2e; }
+.dot.green { background: #28c840; }
+.titlebar-title { position: absolute; left: 50%; transform: translateX(-50%);
+  font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.titlebar-badge { font-size: 10px; background: var(--bg3); border: 1px solid var(--border);
+  padding: 1px 7px; border-radius: 4px; color: var(--faint); }
+
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Left Panel ── */
+.left-panel {
+  width: 280px; min-width: 280px; background: var(--bg2);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 12px 14px 0; flex-shrink: 0;
+}
+.panel-tabs {
+  display: flex; gap: 2px; background: var(--bg3); border-radius: 8px;
+  padding: 3px; margin-bottom: 12px;
+}
+.panel-tab {
+  flex: 1; text-align: center; padding: 5px 6px; border-radius: 6px;
+  font-size: 11px; font-weight: 500; color: var(--muted); cursor: pointer;
+  transition: all 0.15s;
+}
+.panel-tab.active { background: var(--bg2); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.panel-tab:hover:not(.active) { color: var(--text); }
+
+.panel-scroll { flex: 1; overflow-y: auto; padding: 0 10px 10px; }
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Sprint stats row */
+.sprint-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px;
+}
+.stat-box {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 6px; text-align: center;
+}
+.stat-val { font-size: 18px; font-weight: 700; line-height: 1; }
+.stat-lbl { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+/* Epic sections */
+.epic { margin-bottom: 8px; }
+.epic-header {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  border-radius: 6px; cursor: pointer; transition: background 0.1s;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.epic-header:hover { background: var(--bg3); }
+.epic-header .chevron { font-size: 9px; transition: transform 0.2s; margin-left: auto; }
+.epic-header.open .chevron { transform: rotate(90deg); }
+
+.story-list { padding-left: 6px; }
+.story-card {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 8px; border-radius: 8px; cursor: pointer;
+  transition: background 0.1s; margin-bottom: 2px; border: 1px solid transparent;
+}
+.story-card:hover { background: var(--bg3); }
+.story-card.active { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.25); }
+
+.story-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.story-body { flex: 1; min-width: 0; }
+.story-title { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.story-meta { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.badge {
+  font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.badge.done    { background: rgba(34,197,94,0.15);  color: var(--green); }
+.badge.coding  { background: rgba(59,130,246,0.15);  color: var(--blue); }
+.badge.plan    { background: rgba(245,158,11,0.15);  color: var(--amber); }
+.badge.backlog { background: rgba(113,113,122,0.15); color: var(--faint); }
+.badge.testing { background: rgba(139,92,246,0.15);  color: var(--violet); }
+.story-time { font-size: 9px; color: var(--faint); }
+.story-agent { font-size: 9px; color: var(--faint); margin-left: auto; flex-shrink: 0; }
+
+/* ── Center Chat ── */
+.center { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-messages {
+  flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.chat-messages::-webkit-scrollbar { width: 5px; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.msg { display: flex; flex-direction: column; gap: 3px; }
+.msg.user { align-items: flex-end; }
+.msg.forge { align-items: flex-start; }
+.msg-label { font-size: 10px; font-weight: 600; color: var(--faint); padding: 0 4px;
+  text-transform: uppercase; letter-spacing: 0.05em; }
+.msg.user .msg-label { color: var(--green); }
+.bubble {
+  padding: 10px 14px; border-radius: 10px; max-width: 78%; line-height: 1.6; font-size: 13px;
+}
+.msg.user .bubble { background: #1e3a2f; border: 1px solid #166534; border-bottom-right-radius: 3px; }
+.msg.forge .bubble { background: var(--bg2); border: 1px solid var(--border);
+  border-bottom-left-radius: 3px; max-width: 88%; white-space: pre-wrap; }
+
+/* Activity panel */
+.activity-panel {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; width: 88%; margin-top: 4px;
+}
+.activity-hdr {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--muted);
+}
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: puls 1.5s infinite; }
+@keyframes puls { 0%,100%{opacity:.4;transform:scale(.85)} 50%{opacity:1;transform:scale(1)} }
+
+.agent-section { padding: 8px 10px; border-bottom: 1px solid rgba(63,63,70,0.5); }
+.agent-row { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+.agent-lbl {
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.agent-lbl.planning  { background: rgba(245,158,11,.2); color: var(--amber); }
+.agent-lbl.coding    { background: rgba(59,130,246,.2); color: var(--blue); }
+.agent-lbl.testing   { background: rgba(139,92,246,.2); color: var(--violet); }
+.agent-lbl.deploy    { background: rgba(34,197,94,.2);  color: var(--green); }
+.agent-instr { font-size: 11px; color: var(--muted); flex: 1; }
+
+.tool-card {
+  display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px;
+  background: rgba(0,0,0,.2); margin-bottom: 3px; font-size: 11px;
+}
+.tool-icon { font-size: 13px; flex-shrink: 0; }
+.tool-name { font-weight: 600; color: var(--text); }
+.tool-input { color: var(--faint); font-family: monospace; font-size: 10px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.tool-status { margin-left: auto; flex-shrink: 0; }
+.spin { display: inline-block; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Input */
+.chat-input-area {
+  border-top: 1px solid var(--border); padding: 12px 16px; background: var(--bg); flex-shrink: 0;
+}
+.input-wrap {
+  display: flex; gap: 8px; align-items: flex-end;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;
+}
+.input-wrap:focus-within { border-color: var(--green); }
+.fake-input { flex: 1; font-size: 13px; color: var(--faint); font-family: inherit; }
+.send-btn {
+  width: 30px; height: 30px; background: var(--green); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px; color: #000; flex-shrink: 0;
+}
+.pause-btn {
+  width: 30px; height: 30px; background: var(--red); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; flex-shrink: 0;
+}
+.input-hint { font-size: 10px; color: var(--faint); margin-top: 6px; text-align: center; }
+
+/* Status bar */
+.statusbar {
+  display: flex; align-items: center; gap: 6px; padding: 5px 16px;
+  background: var(--bg2); border-top: 1px solid var(--border); font-size: 11px; color: var(--faint);
+  flex-shrink: 0;
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); animation: puls 1.5s infinite; }
+
+/* ── Right Panel — Evidence ── */
+.right-panel {
+  width: 300px; min-width: 300px; background: var(--bg2);
+  border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+}
+.right-header {
+  padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.right-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.right-sub { font-size: 11px; color: var(--muted); }
+.right-scroll { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.right-scroll::-webkit-scrollbar { width: 4px; }
+.right-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.evidence-block {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.ev-header {
+  display: flex; align-items: center; gap: 7px; padding: 8px 10px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.ev-icon { font-size: 14px; }
+.ev-label { font-size: 11px; font-weight: 600; color: var(--text); }
+.ev-time { font-size: 10px; color: var(--faint); margin-left: auto; }
+.ev-body { padding: 8px 10px; font-size: 11px; color: var(--muted); line-height: 1.6; }
+.ev-body code { background: var(--bg); padding: 1px 5px; border-radius: 3px;
+  font-family: monospace; font-size: 10px; color: var(--cyan); }
+.ev-body .file-list { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+.ev-body .file-item { display: flex; align-items: center; gap: 5px; color: var(--blue); font-size: 10px; font-family: monospace; }
+.ev-body .pass { color: var(--green); font-weight: 600; }
+.ev-body .commit { display: flex; align-items: center; gap: 6px; }
+.ev-body .sha { color: var(--amber); font-family: monospace; font-size: 10px; }
+
+.timeline {
+  display: flex; align-items: center; gap: 0; padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.tl-step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+.tl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.tl-dot.amber { background: var(--amber); }
+.tl-line { height: 1px; background: var(--green); flex: 1; }
+.tl-label { font-size: 9px; color: var(--faint); margin-top: 3px; }
+.tl-row { display: flex; align-items: center; width: 100%; }
+
+/* Prototype card */
+.proto-card {
+  background: var(--bg3); border: 1px solid rgba(34,197,94,0.3); border-radius: 10px;
+  padding: 12px 14px; width: 88%; margin-top: 4px;
+}
+.proto-hdr { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600;
+  color: var(--green); margin-bottom: 8px; }
+.proto-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+.proto-thumb {
+  width: 100%; height: 100px; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; margin-bottom: 10px; overflow: hidden; position: relative;
+}
+.proto-thumb-inner {
+  width: 100%; height: 100%; display: flex; flex-direction: column;
+}
+.proto-mini-nav { height: 18px; background: #0d0d0f; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 8px; gap: 5px; }
+.proto-mini-dot { width: 5px; height: 5px; border-radius: 50%; }
+.proto-mini-content { flex: 1; padding: 6px 8px; display: flex; gap: 6px; }
+.proto-mini-sidebar { width: 40px; background: var(--bg2); border-radius: 3px; }
+.proto-mini-main { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.proto-mini-row { height: 8px; background: var(--bg3); border-radius: 2px; }
+.proto-mini-row.w80 { width: 80%; }
+.proto-mini-row.w60 { width: 60%; }
+.proto-mini-table { flex: 1; background: var(--bg3); border-radius: 3px; }
+.proto-actions { display: flex; gap: 7px; }
+.proto-btn {
+  flex: 1; padding: 6px 10px; border-radius: 7px; font-size: 11px; font-weight: 600;
+  text-align: center; cursor: pointer;
+}
+.proto-btn.primary { background: var(--green); color: #000; }
+.proto-btn.secondary { background: var(--bg); border: 1px solid var(--border); color: var(--muted); }
+
+/* Confirmation prompt */
+.confirm-card {
+  background: var(--bg2); border: 1px solid rgba(59,130,246,0.3); border-radius: 10px;
+  padding: 12px 14px; width: 88%; margin-top: 4px;
+}
+.confirm-msg { font-size: 12px; color: var(--text); margin-bottom: 10px; line-height: 1.6; }
+.confirm-btns { display: flex; gap: 7px; }
+.confirm-btn {
+  padding: 6px 14px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.confirm-btn.yes { background: var(--green); color: #000; }
+.confirm-btn.no  { background: var(--bg3); border: 1px solid var(--border); color: var(--muted); }
+
+/* Tooltip watermark */
+.watermark {
+  position: fixed; bottom: 10px; right: 12px; font-size: 10px; color: var(--faint);
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="traffic">
+      <div class="dot red"></div>
+      <div class="dot yellow"></div>
+      <div class="dot green"></div>
+    </div>
+    <div class="titlebar-title">
+      🔨 Forge
+      <span class="titlebar-badge">agenticai-demo</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- ── LEFT PANEL ── -->
+    <div class="left-panel">
+      <div class="panel-header">
+        <div class="panel-tabs">
+          <div class="panel-tab active" onclick="switchTab(this,'board')">Board</div>
+          <div class="panel-tab" onclick="switchTab(this,'epics')">Epics</div>
+          <div class="panel-tab" onclick="switchTab(this,'history')">History</div>
+        </div>
+      </div>
+
+      <div class="panel-scroll" id="tab-board">
+        <!-- Sprint stats -->
+        <div class="sprint-stats">
+          <div class="stat-box">
+            <div class="stat-val" style="color:var(--text)">12</div>
+            <div class="stat-lbl">Total</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color:var(--green)">7</div>
+            <div class="stat-lbl">Done</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color:var(--blue)">3</div>
+            <div class="stat-lbl">Active</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color:var(--amber)">2</div>
+            <div class="stat-lbl">Backlog</div>
+          </div>
+        </div>
+
+        <!-- In Progress -->
+        <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;padding:0 4px;">
+          🔄 In Progress
+        </div>
+
+        <div class="story-card active" onclick="showEvidence('rohs')">
+          <div class="story-icon">🔬</div>
+          <div class="story-body">
+            <div class="story-title">Add RoHS Compliance Checker</div>
+            <div class="story-meta">
+              <span class="badge coding">Coding</span>
+              <span class="story-time">12 min ago</span>
+              <span class="story-agent">Forge</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-card" onclick="showEvidence('gadsl')">
+          <div class="story-icon">🧪</div>
+          <div class="story-body">
+            <div class="story-title">GADSL Date Columns Parser</div>
+            <div class="story-meta">
+              <span class="badge testing">Testing</span>
+              <span class="story-time">34 min ago</span>
+              <span class="story-agent">Forge</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-card" onclick="showEvidence('cover')">
+          <div class="story-icon">📝</div>
+          <div class="story-body">
+            <div class="story-title">Cover Letter Agent Polish</div>
+            <div class="story-meta">
+              <span class="badge plan">Planning</span>
+              <span class="story-time">1 hr ago</span>
+              <span class="story-agent">Forge</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Done -->
+        <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 5px;padding:0 4px;">
+          ✅ Done
+        </div>
+
+        <div class="story-card" onclick="showEvidence('dark')">
+          <div class="story-icon">🌙</div>
+          <div class="story-body">
+            <div class="story-title">Light/Dark Theme Toggle</div>
+            <div class="story-meta">
+              <span class="badge done">Done</span>
+              <span class="story-time">Mar 15</span>
+              <span class="story-agent">Forge</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-card" onclick="showEvidence('did')">
+          <div class="story-icon">🎥</div>
+          <div class="story-body">
+            <div class="story-title">D-ID API Key Fix</div>
+            <div class="story-meta">
+              <span class="badge done">Done</span>
+              <span class="story-time">Mar 14</span>
+              <span class="story-agent">Gaurav</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-card">
+          <div class="story-icon">📊</div>
+          <div class="story-body">
+            <div class="story-title">Manufacturing Intelligence Chat</div>
+            <div class="story-meta">
+              <span class="badge done">Done</span>
+              <span class="story-time">Mar 13</span>
+              <span class="story-agent">Forge</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-card">
+          <div class="story-icon">🛒</div>
+          <div class="story-body">
+            <div class="story-title">Ecommerce Catalog Agent</div>
+            <div class="story-meta">
+              <span class="badge done">Done</span>
+              <span class="story-time">Mar 12</span>
+              <span class="story-agent">Forge</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backlog -->
+        <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 5px;padding:0 4px;">
+          📋 Backlog
+        </div>
+
+        <div class="story-card">
+          <div class="story-icon">🔐</div>
+          <div class="story-body">
+            <div class="story-title">REACH Compliance Agent</div>
+            <div class="story-meta">
+              <span class="badge backlog">Backlog</span>
+              <span class="story-time">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-card">
+          <div class="story-icon">📈</div>
+          <div class="story-body">
+            <div class="story-title">Smart KB Dashboard View</div>
+            <div class="story-meta">
+              <span class="badge backlog">Backlog</span>
+              <span class="story-time">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EPICS tab (hidden by default) -->
+      <div class="panel-scroll" id="tab-epics" style="display:none">
+        <div class="epic">
+          <div class="epic-header open" onclick="toggleEpic(this)">
+            <span>⚖️</span> Compliance Hub <span style="margin-left:auto;font-size:10px;color:var(--green)">4/6</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="story-list">
+            <div class="story-card"><div class="story-icon">✅</div><div class="story-body"><div class="story-title">GADSL Checker</div><div class="story-meta"><span class="badge done">Done</span></div></div></div>
+            <div class="story-card active"><div class="story-icon">🔄</div><div class="story-body"><div class="story-title">RoHS Checker</div><div class="story-meta"><span class="badge coding">Coding</span></div></div></div>
+            <div class="story-card"><div class="story-icon">📋</div><div class="story-body"><div class="story-title">REACH Compliance</div><div class="story-meta"><span class="badge backlog">Backlog</span></div></div></div>
+          </div>
+        </div>
+        <div class="epic">
+          <div class="epic-header open" onclick="toggleEpic(this)">
+            <span>🎓</span> Education Hub <span style="margin-left:auto;font-size:10px;color:var(--green)">3/3</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="story-list">
+            <div class="story-card"><div class="story-icon">✅</div><div class="story-body"><div class="story-title">Video Generator</div><div class="story-meta"><span class="badge done">Done</span></div></div></div>
+            <div class="story-card"><div class="story-icon">✅</div><div class="story-body"><div class="story-title">Report Summariser</div><div class="story-meta"><span class="badge done">Done</span></div></div></div>
+            <div class="story-card"><div class="story-icon">✅</div><div class="story-body"><div class="story-title">PPT Generator</div><div class="story-meta"><span class="badge done">Done</span></div></div></div>
+          </div>
+        </div>
+        <div class="epic">
+          <div class="epic-header" onclick="toggleEpic(this)">
+            <span>🏭</span> Manufacturing Hub <span style="margin-left:auto;font-size:10px;color:var(--blue)">1/2</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="story-list" style="display:none">
+            <div class="story-card"><div class="story-icon">✅</div><div class="story-body"><div class="story-title">Intelligence Chat</div><div class="story-meta"><span class="badge done">Done</span></div></div></div>
+            <div class="story-card"><div class="story-icon">📋</div><div class="story-body"><div class="story-title">Defect Detector</div><div class="story-meta"><span class="badge backlog">Backlog</span></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY tab -->
+      <div class="panel-scroll" id="tab-history" style="display:none">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;color:var(--text)">Smart KB implemented</div>
+            <div style="font-size:10px;color:var(--faint);margin-top:2px">Forge · 3 files changed · 2 min ago</div>
+          </div>
+          <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;color:var(--text)">Pause button added</div>
+            <div style="font-size:10px;color:var(--faint);margin-top:2px">Forge · 4 files changed · 18 min ago</div>
+          </div>
+          <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;color:var(--text)">Prototype-first flow</div>
+            <div style="font-size:10px;color:var(--faint);margin-top:2px">Forge · 6 files changed · 1 hr ago</div>
+          </div>
+          <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;color:var(--text)">Token optimisation</div>
+            <div style="font-size:10px;color:var(--faint);margin-top:2px">Forge · 5 files changed · 2 hrs ago</div>
+          </div>
+          <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;color:var(--text)">Conversational GADSL tone</div>
+            <div style="font-size:10px;color:var(--faint);margin-top:2px">Forge · 1 file changed · Mar 16</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CENTER CHAT ── -->
+    <div class="center">
+      <div class="chat-messages">
+
+        <!-- User message -->
+        <div class="msg user">
+          <div class="msg-label">You</div>
+          <div class="bubble">Add a new RoHS compliance checker agent</div>
+        </div>
+
+        <!-- Forge planning done + confirmation -->
+        <div class="msg forge">
+          <div class="msg-label">Forge</div>
+          <div class="bubble">## 📋 Plan: RoHS Compliance Checker
+<b>Complexity:</b> Medium
+
+<b>What I'll do:</b>
+• Create page.tsx in src/app/templates/compliance/rohs-checker/
+• Create route.ts in src/app/api/agents/compliance/rohs-checker/
+• Register agent in src/lib/constants.ts
+• Add RoHS substance database to system prompt
+
+<b>Files to change:</b> 3 files
+<b>Risks:</b> None — follows existing GADSL pattern exactly</div>
+          <!-- Prototype card -->
+          <div class="proto-card">
+            <div class="proto-hdr">🎨 Prototype Ready</div>
+            <div class="proto-title">RoHS Compliance Checker</div>
+            <div class="proto-thumb">
+              <div class="proto-thumb-inner">
+                <div class="proto-mini-nav">
+                  <div class="proto-mini-dot" style="background:#ff5f57"></div>
+                  <div class="proto-mini-dot" style="background:#febc2e"></div>
+                  <div class="proto-mini-dot" style="background:#28c840"></div>
+                </div>
+                <div class="proto-mini-content">
+                  <div class="proto-mini-sidebar"></div>
+                  <div class="proto-mini-main">
+                    <div class="proto-mini-row w80"></div>
+                    <div class="proto-mini-row w60"></div>
+                    <div class="proto-mini-table"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="proto-actions">
+              <div class="proto-btn primary">✅ Looks good — proceed</div>
+              <div class="proto-btn secondary">✏️ Request changes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agent activity while coding -->
+        <div class="msg forge">
+          <div class="msg-label">Forge</div>
+          <div class="activity-panel">
+            <div class="activity-hdr">
+              <div class="pulse"></div>
+              Agent Activity
+              <span style="margin-left:auto;font-size:10px;color:var(--amber)">Coding working...</span>
+            </div>
+            <!-- Planning section (done) -->
+            <div class="agent-section">
+              <div class="agent-row">
+                <span class="agent-lbl planning">Planning</span>
+                <span class="agent-instr">Plan implementation of RoHS checker</span>
+              </div>
+              <div class="tool-card">
+                <span class="tool-icon">📂</span>
+                <span class="tool-name">list_files</span>
+                <span class="tool-input">src/app/templates/compliance/**</span>
+                <span class="tool-status">✅</span>
+              </div>
+              <div class="tool-card">
+                <span class="tool-icon">📄</span>
+                <span class="tool-name">read_file</span>
+                <span class="tool-input">src/app/templates/compliance/gadsl-checker/page.tsx</span>
+                <span class="tool-status">✅</span>
+              </div>
+            </div>
+            <!-- Coding section (in progress) -->
+            <div class="agent-section">
+              <div class="agent-row">
+                <span class="agent-lbl coding">Coding</span>
+                <span class="agent-instr">Creating RoHS checker page and route</span>
+              </div>
+              <div class="tool-card">
+                <span class="tool-icon">✏️</span>
+                <span class="tool-name">write_file</span>
+                <span class="tool-input">src/app/templates/compliance/rohs-checker/page.tsx</span>
+                <span class="tool-status">✅</span>
+              </div>
+              <div class="tool-card">
+                <span class="tool-icon">✏️</span>
+                <span class="tool-name">write_file</span>
+                <span class="tool-input">src/app/api/agents/compliance/rohs-checker/route.ts</span>
+                <span class="tool-status">✅</span>
+              </div>
+              <div class="tool-card">
+                <span class="tool-icon">✏️</span>
+                <span class="tool-name">edit_file</span>
+                <span class="tool-input">src/lib/constants.ts</span>
+                <span class="tool-status"><span class="spin">⟳</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirm step -->
+        <div class="msg forge">
+          <div class="msg-label">Forge</div>
+          <div class="confirm-card">
+            <div class="confirm-msg">💻 <b>Coding done</b> — 3 files created/updated successfully.
+Next step: <b>🧪 Testing</b> (npm run build)
+
+Shall I proceed?</div>
+            <div class="confirm-btns">
+              <div class="confirm-btn yes">Yes, proceed</div>
+              <div class="confirm-btn no">Pause</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Input -->
+      <div class="chat-input-area">
+        <div class="input-wrap">
+          <div class="fake-input">Tell Forge what to build, fix, or deploy...</div>
+          <div class="pause-btn">⏸</div>
+          <div class="send-btn">↑</div>
+        </div>
+        <div class="input-hint">Enter to send · Shift+Enter for newline · 📎 attach screenshot/mockup</div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="statusbar">
+        <div class="status-dot"></div>
+        <span>Coding agent working... · Sprint: 7/12 done · Last deploy: 2h ago</span>
+      </div>
+    </div>
+
+    <!-- ── RIGHT PANEL — Evidence ── -->
+    <div class="right-panel" id="evidence-panel">
+      <div class="right-header">
+        <div class="right-title" id="ev-title">📋 Evidence: RoHS Checker</div>
+        <div class="right-sub" id="ev-sub">US-008 · In Progress · Forge · Mar 17</div>
+      </div>
+      <div class="right-scroll">
+
+        <!-- Plan -->
+        <div class="evidence-block">
+          <div class="ev-header">
+            <span class="ev-icon">📋</span>
+            <span class="ev-label">Plan</span>
+            <span class="ev-time">10:32 AM</span>
+          </div>
+          <div class="ev-body">
+            Planning agent analysed GADSL pattern. Identified 3 files to create/modify. Complexity: Medium.
+          </div>
+        </div>
+
+        <!-- Prototype -->
+        <div class="evidence-block">
+          <div class="ev-header">
+            <span class="ev-icon">🎨</span>
+            <span class="ev-label">Prototype</span>
+            <span class="ev-time">10:38 AM</span>
+          </div>
+          <div class="ev-body">
+            HTML prototype generated &amp; approved by user. Preview at <code>localhost:4567/rohs-001</code>
+          </div>
+        </div>
+
+        <!-- Code changes -->
+        <div class="evidence-block">
+          <div class="ev-header">
+            <span class="ev-icon">💻</span>
+            <span class="ev-label">Code Changes</span>
+            <span class="ev-time">10:44 AM</span>
+          </div>
+          <div class="ev-body">
+            <div class="file-list">
+              <div class="file-item">📄 src/app/templates/compliance/rohs-checker/page.tsx <span style="color:var(--green)">+312</span></div>
+              <div class="file-item">📄 src/app/api/agents/compliance/rohs-checker/route.ts <span style="color:var(--green)">+187</span></div>
+              <div class="file-item">📄 src/lib/constants.ts <span style="color:var(--green)">+24</span> <span style="color:var(--red)">-2</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Test result -->
+        <div class="evidence-block">
+          <div class="ev-header">
+            <span class="ev-icon">🧪</span>
+            <span class="ev-label">Test Result</span>
+            <span class="ev-time">10:47 AM</span>
+          </div>
+          <div class="ev-body">
+            <span class="pass">✅ Build passed</span> — 0 errors, 0 warnings<br/>
+            <code>npm run build</code> completed in 14.2s
+          </div>
+        </div>
+
+        <!-- Deployment -->
+        <div class="evidence-block">
+          <div class="ev-header">
+            <span class="ev-icon">🚀</span>
+            <span class="ev-label">Deployment</span>
+            <span class="ev-time">Pending</span>
+          </div>
+          <div class="ev-body" style="color:var(--faint)">
+            Waiting for user approval to proceed with testing...
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+          <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:8px;">Timeline</div>
+          <div style="display:flex;align-items:center;gap:0">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>
+              <div style="font-size:9px;color:var(--faint)">Plan</div>
+              <div style="font-size:8px;color:var(--faint)">10:32</div>
+            </div>
+            <div style="flex:1;height:1px;background:var(--green);margin-bottom:18px"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>
+              <div style="font-size:9px;color:var(--faint)">Proto</div>
+              <div style="font-size:8px;color:var(--faint)">10:38</div>
+            </div>
+            <div style="flex:1;height:1px;background:var(--green);margin-bottom:18px"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>
+              <div style="font-size:9px;color:var(--faint)">Code</div>
+              <div style="font-size:8px;color:var(--faint)">10:44</div>
+            </div>
+            <div style="flex:1;height:1px;background:var(--amber);margin-bottom:18px"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div>
+              <div style="font-size:9px;color:var(--faint)">Test</div>
+              <div style="font-size:8px;color:var(--faint)">—</div>
+            </div>
+            <div style="flex:1;height:1px;background:var(--border);margin-bottom:18px"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--border)"></div>
+              <div style="font-size:9px;color:var(--faint)">Deploy</div>
+              <div style="font-size:8px;color:var(--faint)">—</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="watermark">Forge v1.0 — Mockup</div>
+
+<script>
+function switchTab(el, tab) {
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['board','epics','history'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none';
+  });
+}
+
+function toggleEpic(header) {
+  header.classList.toggle('open');
+  const list = header.nextElementSibling;
+  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+const evidenceData = {
+  rohs: { title: '📋 Evidence: RoHS Checker', sub: 'US-008 · In Progress · Forge · Mar 17' },
+  gadsl: { title: '📋 Evidence: GADSL Date Parser', sub: 'US-006 · Testing · Forge · Mar 16' },
+  cover: { title: '📋 Evidence: Cover Letter Polish', sub: 'US-007 · Planning · Forge · Mar 17' },
+  dark: { title: '📋 Evidence: Dark Mode Toggle', sub: 'US-004 · Done · Forge · Mar 15' },
+  did: { title: '📋 Evidence: D-ID API Fix', sub: 'US-003 · Done · Gaurav · Mar 14' },
+};
+
+function showEvidence(key) {
+  document.querySelectorAll('.story-card').forEach(c => c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const d = evidenceData[key];
+  if (d) {
+    document.getElementById('ev-title').textContent = d.title;
+    document.getElementById('ev-sub').textContent = d.sub;
+  }
+}
+</script>
+</body>
+</html>
